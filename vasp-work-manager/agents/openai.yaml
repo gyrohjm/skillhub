@@ -1,0 +1,4 @@
+interface:
+  display_name: "VASP Work Manager"
+  short_description: "Archive and verify VASP results"
+  default_prompt: "Use $vasp-work-manager to archive this VASP calculation and verify the preserved data and plotting files."
