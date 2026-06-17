@@ -1,0 +1,4 @@
+interface:
+  display_name: "VASP Analysis"
+  short_description: "Extract VASP plot data and reports"
+  default_prompt: "Use $vasp-analysis to extract VASP plot data, generate figures, and write an analysis report."
