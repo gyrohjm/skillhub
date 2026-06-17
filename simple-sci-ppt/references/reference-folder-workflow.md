@@ -8,10 +8,11 @@ Use this when the user provides a folder such as `refs/` with papers, images, no
 2. Classify materials into papers, figures, notes, datasets/code, and previous slides.
 3. Extract paper metadata: title, authors, year, journal/conference, DOI/arXiv ID if available, research question, method, main result, and limitation.
 4. Inspect figures and captions. Mark each candidate image as evidence, mechanism, workflow, result comparison, or background illustration.
-5. Crop paper figures directly from PDF-rendered pages before PPT insertion. Use `scripts/crop_pdf_figure.py` for reproducible crops.
-6. Build a markdown plan with source inventory, claim-evidence map, selected figures, comparison tables, visual-object traceability, speaker notes, and slide-by-slide storyline.
-7. Generate the PPTX with `pptxgenjs`.
-8. Run the AI review loop in `qa-iteration.md`.
+5. For PDF-derived visuals, render every candidate page to an image screenshot and inspect that screenshot before deciding the crop or placeholder.
+6. Crop paper figures directly from PDF-rendered pages before PPT insertion. Use `scripts/crop_pdf_figure.py` for reproducible crops.
+7. Build a markdown plan with source inventory, claim-evidence map, selected figures, comparison tables, visual-object traceability, rendered PDF page screenshots, speaker notes, and slide-by-slide storyline.
+8. Generate the PPTX with `pptxgenjs`.
+9. Run the AI review loop in `qa-iteration.md`.
 
 ## Paper Figure Crops
 
@@ -22,13 +23,16 @@ Good paper-figure crops:
 - include the relevant panel or figure group,
 - preserve axis labels, legends, panel labels, and scale bars,
 - remove unrelated article columns and footers,
-- keep the source PDF, page number, crop box, and output file in the markdown plan.
+- keep the source PDF, page number, rendered page screenshot path, crop box, and output file in the markdown plan.
 
-If an agent cannot infer crop coordinates, it should render the full page to PNG, inspect it visually, choose a box, and record that manual crop choice.
+Render the full candidate PDF page to an image and inspect it visually before selecting the crop box. This is mandatory for PDF-derived figures, tables, equations, or diagrams because text extraction alone is not reliable enough for crop boundaries.
+
+If an agent cannot infer crop coordinates after visual inspection, it should keep the rendered page screenshot path, insert a placeholder frame, and record the reason.
 
 For each selected paper figure, record its state in the markdown plan:
 
 - `selected`: figure is relevant but not yet cropped,
+- `page-rendered`: candidate PDF page screenshot exists and was inspected,
 - `cropped`: crop asset exists,
 - `inserted`: crop appears in exported PPT preview,
 - `pending crop`: the PPT contains a visible placeholder frame because the current agent/toolchain cannot crop or extract the figure,
@@ -42,6 +46,7 @@ Placeholder frame requirements:
 - Write `内容：<expected visual content>` as the second line.
 - Write `状态：待裁剪 / 需人工插入` as the third line.
 - Keep the placeholder inside a figure card at the same size and position where the final image should appear.
+- Record the rendered page screenshot path in the speaker notes when available; if unavailable, record the rendering failure reason.
 
 ## Group Meeting Storyline
 
