@@ -1,5 +1,0 @@
-__pycache__/
-*.py[cod]
-.DS_Store
-.queue.lock
-references/cluster-profiles.local.md

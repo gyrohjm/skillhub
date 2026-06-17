@@ -1,4 +1,0 @@
-interface:
-  display_name: "VASP Workflow"
-  short_description: "Design, prepare, and submit VASP jobs"
-  default_prompt: "Use $vasp-workflow to design a VASP task, review inputs, and prepare cluster submission."
