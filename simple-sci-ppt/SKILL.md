@@ -12,19 +12,38 @@ description: Create, revise, and verify formal academic PowerPoint decks in a cl
 3. Read `references/layout-archetypes.md` before placing ordinary content-slide objects. Pick one archetype per content slide unless the user explicitly asks for a custom layout.
 4. Read `references/workflow.md` for the common generation sequence.
 5. Read `references/content-writing.md` before writing slide text.
-6. Default to English deck text unless the user specifies Chinese or another language.
+6. Default to Chinese deck text unless the user explicitly requests English or another target language.
 7. Create one markdown planning document that contains both the outline and the expanded slide-level content plan. Use `references/md-plan-template.md`.
 8. For every ordinary content slide, include a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content` before writing generator code.
 9. Prefer figures, paper crops, plots, diagrams, and compact tables over dense prose. Track every planned visual object to an actual PPT object, visible placeholder, or explicit missing-state note.
 10. Generate the PPT with editable `pptxgenjs` objects and MathJax-rendered formula images.
 11. Include a cover slide, an outline/storyline slide, content slides, and a final conclusion slide unless explicitly exempted.
 12. Do not put a bottom conclusion box on the outline slide.
-13. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source.
+13. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source; every slide-level image, cropped paper figure, generated plot, figure placeholder, or manually inserted visual must include its source information in the notes.
 14. Use the starter generator's helper components for cover, outline, conclusion, cards, tables, citations, formulas, speaker notes, and code. Avoid unconstrained free-coordinate slide construction.
 15. Keep ordinary content slides to at most 3 sentences/bullets; allow 4 only for justified data-heavy method/result pages.
 16. Keep bottom conclusion boxes above the citation/footer region; do not use the conclusion as a paragraph container.
-17. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`.
+17. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`; also write the same source and failure reason in the slide speaker notes.
 18. Run the AI review iteration loop before delivery. Content and layout must both pass.
+
+## Language Rule
+
+Default deck language is Chinese. This applies to slide titles, visible body text, bottom conclusion sentences, table labels, placeholder text, citation explanations, and speaker notes. Use English only when the user explicitly requests English, when the source text must remain in English for technical accuracy, or when preserving proper nouns, formulas, code, variable names, journal names, and citation metadata.
+
+## Image Source Notes Rule
+
+Every slide with any image-like visual object must include an `Image sources:` section in its speaker notes. This applies to successfully inserted images and to failed crops represented by placeholders.
+
+For each visual object, record:
+
+- object id or visible label,
+- source file / paper / URL / notebook / generated asset path,
+- paper page and figure/panel number when available,
+- crop asset path or generated output path when available,
+- PPT status: `inserted`, `generated`, `placeholder`, `pending crop`, or `omitted`,
+- failure reason and required manual action when the object is not inserted.
+
+Do not treat a visible citation footer as a replacement for speaker-note source tracking. The footer is for audience attribution; the speaker notes are for later editing and source recovery.
 
 ## Implementation Resources
 
@@ -46,6 +65,9 @@ description: Create, revise, and verify formal academic PowerPoint decks in a cl
 
 - A markdown plan promises a paper figure, spectrum, structure model, or comparison chart but the PPT contains only text.
 - A required paper figure is unavailable but the PPT has no visible placeholder frame with target source and figure/page.
+- A slide uses an inserted image, cropped paper figure, generated plot, or placeholder but the speaker notes do not include its source and status.
+- A figure cannot be cropped and is represented by a placeholder, but the notes omit the original source, page/figure number, or failure reason.
+- The deck defaults to English even though the user did not explicitly request English.
 - A QA checklist says pass without citing exported preview slides or actual PPT objects.
 - Cover metadata, outline items, right-side cards, tables, or bottom conclusion text are clipped in preview.
 - A normal content slide exceeds 3 sentences/bullets, or a data-heavy slide exceeds 4, without splitting or justification.
@@ -65,8 +87,10 @@ In the final response, report:
 - final PPTX path,
 - generator script path if created or modified,
 - slide count,
+- deck language and whether it followed the default Chinese rule or an explicit user override,
 - whether PowerPoint opened/exported successfully,
 - whether formulas were inserted as MathJax-rendered image assets,
-- any unresolved caveat such as formula fallback to raw LaTeX.
+- whether all inserted/placeholder image sources were recorded in speaker notes,
+- any unresolved caveat such as formula fallback to raw LaTeX or manual figure crop still pending.
 
 Do not expose scratch preview directories unless the user asks for QA artifacts.
