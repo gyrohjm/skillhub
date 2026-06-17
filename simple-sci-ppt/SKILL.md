@@ -63,3 +63,4 @@ In the final response, report:
 - any unresolved caveat such as formula fallback to raw LaTeX.
 
 Do not expose scratch preview directories unless the user asks for QA artifacts.
+

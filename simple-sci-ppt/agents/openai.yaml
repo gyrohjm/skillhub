@@ -1,0 +1,7 @@
+interface:
+  display_name: "simple-sci-ppt"
+  short_description: "Build research, lecture, and group meeting PPTX decks with pptxgenjs and MathJax"
+  brand_color: "#1D4E89"
+  default_prompt: "Use $simple-sci-ppt to plan and generate a formal research or classroom PPT with pptxgenjs and MathJax from my source materials."
+policy:
+  allow_implicit_invocation: true
