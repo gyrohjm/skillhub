@@ -21,6 +21,8 @@ potcar-catalog.local.json
 
 # Historical/reference material kept locally.
 archived/
+sci-assistant/
+sci-assitant/
 
 # Local backups of former nested skill repositories.
 .git-history-backups/
