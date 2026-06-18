@@ -1,0 +1,27 @@
+{
+  "project_name": "钠插层石墨烯界面 / Na-intercalated graphene interface",
+  "project_slug": "na_intercalation_interface",
+  "mode": "hybrid",
+  "domain": "computational materials science / 计算材料科学",
+  "summary": "Resolve how Na intercalation changes interface structure and electronic properties / 阐明钠插层对界面结构和电子性质的影响",
+  "background": "TBD / 待补充",
+  "research_questions": [
+    "Which intercalation sites are stable and experimentally plausible? / 哪些插层位点稳定且具有实验可实现性？"
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "Na intercalation decouples graphene from the substrate / 钠插层使石墨烯与衬底解耦",
+      "falsification": "No reproducible reduction in interface coupling observables / 界面耦合表征量没有可重复降低"
+    }
+  ],
+  "objectives": [
+    {
+      "id": "O1",
+      "description": "Compare candidate Na sites under converged settings / 在收敛参数下比较候选钠位点",
+      "success_criteria": "All candidate structures use one validated calculation protocol / 所有候选结构使用同一套经验证的计算流程"
+    }
+  ],
+  "deliverables": ["validated structures", "publication-ready plot data"],
+  "constraints": ["TBD / 待补充"]
+}

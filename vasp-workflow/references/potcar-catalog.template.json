@@ -1,0 +1,13 @@
+{
+  "default_functional": "PBE",
+  "potcars": [
+    {
+      "functional": "PBE",
+      "element": "Si",
+      "label": "Si",
+      "title": "PAW_PBE Si 05Jan2001",
+      "path": "/replace/with/private/potcar/path",
+      "sha256": "replace-with-sha256"
+    }
+  ]
+}

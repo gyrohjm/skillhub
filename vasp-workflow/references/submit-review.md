@@ -23,12 +23,14 @@ K-path, or resource envelope before the job enters Slurm.
   calculations, list the high-symmetry path explicitly, e.g.
   `G-X-W-K-G-L-U-W-L-K` for FCC, and state whether it was generated manually,
   by VASPKIT, pymatgen, SeeK-path, or another package.
-- `POTCAR`: element order, POTCAR title lines or safe labels, SHA256, and source
-  path. Ask the user which POTCAR set to use before generating or submitting;
-  do not silently choose a pseudopotential. Do not put POTCAR contents in a
+- `POTCAR`: functional, element order, POTCAR title lines or safe labels,
+  SHA256, and source path. Default the functional to `PBE` when the user has not
+  specified one, but ask the user which element-specific label/path to use when
+  the local catalog is missing or ambiguous. Do not put POTCAR contents in a
   public repository.
-- Resources: partition, QoS, node count, ntasks, ntasks-per-node,
-  cpus-per-task, wall time, VASP command, module assumptions.
+- Resources: partition, QoS, account, nodelist, GRES/GPU request, node count,
+  ntasks, ntasks-per-node, cpus-per-task, wall time, VASP command, module
+  assumptions.
 - Task count: one job count, or finite-displacement worker count plus total
   displacement count.
 
@@ -37,8 +39,9 @@ of fabricating the file. Common options are VASPKIT on the cluster, or a Python
 virtual environment with packages such as `pymatgen`, `ase`, `phonopy`, and
 `seekpath`.
 
-Submission is invalid when any input hash or resource field changes after the
-review. Regenerate the review and get user approval again.
+Submission is invalid when any POSCAR/INCAR/KPOINTS/POTCAR hash, POTCAR
+functional/label/path, module stack, VASP command, or resource field changes
+after the review. Regenerate the review and get user approval again.
 
 For FD phonon worker queues, the user approves the whole taskset envelope once:
 all workers may claim displacements only inside that approved envelope.
@@ -53,3 +56,8 @@ per-stage review requirement. The cron/tick script must write or verify each
 stage review with actual derived hashes before submitting that stage. If a
 derived input, resource field, or dependency path is outside the approved
 workflow envelope, block and ask the user or Agent to review.
+
+Standard prepared stages (`prepare relax|scf|band|dos`) write their review and
+approval directly inside the stage directory. FD worker queues write them inside
+the taskset `input/` directory. Automation plans must point `review_file` and
+`approval_file` at the right relative path.

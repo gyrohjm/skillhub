@@ -33,6 +33,11 @@ SAFE_RECOVERY_ACTIONS = ("restart_from_contcar", "restage_inputs", "resubmit")
 # Stale outputs moved aside before a retry so the next attempt is judged on its
 # own results (not a previous run's OUTCAR/OSZICAR).
 ATTEMPT_ARCHIVE_FILES = ("OUTCAR", "OSZICAR", "vasp.out", "vasp.err")
+DEFAULT_POTCAR_FUNCTIONAL = "PBE"
+DEFAULT_RELAX_EDIFF = "1E-6"
+DEFAULT_RELAX_EDIFFG = "-0.01"
+DEFAULT_RELAX_NSW = 80
+DEFAULT_SCF_EDIFF = "1E-7"
 
 DEFAULT_FD_INCAR = """SYSTEM = finite displacement phonon force calculation
 PREC = Accurate
@@ -52,6 +57,9 @@ PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
     "generic": {
         "partition": "",
         "qos": "",
+        "account": "",
+        "nodelist": "",
+        "gres": "",
         "nodes": 1,
         "ntasks_per_node": 1,
         "cpus_per_task": 1,
@@ -61,21 +69,98 @@ PROFILE_DEFAULTS: dict[str, dict[str, Any]] = {
     "nmg": {
         "partition": "Nano",
         "qos": "",
+        "account": "",
+        "nodelist": "",
+        "gres": "",
         "nodes": 1,
         "ntasks_per_node": 40,
         "cpus_per_task": 1,
-        "time": "24:00:00",
-        "vasp_cmd": "srun vasp_std",
+        "time": "",
+        "vasp_cmd": "module load intel_parallel; module load vasp/6.4.2/avx512/orig; ulimit -s unlimited; srun -n $SLURM_NTASKS vasp_std",
     },
     "phoenix": {
         "partition": "Phoenix",
-        "qos": "tiny",
+        "qos": "huge",
+        "account": "",
+        "nodelist": "",
+        "gres": "",
         "nodes": 1,
         "ntasks_per_node": 112,
         "cpus_per_task": 1,
-        "time": "24:00:00",
-        "vasp_cmd": "mpirun -np ${SLURM_NPROCS:-112} vasp_std",
+        "time": "",
+        "vasp_cmd": "module load intel_parallel; module load vasp6.4.2-avx512; unset I_MPI_PMI_LIBRARY; ulimit -s unlimited; srun vasp_std",
     },
+    "phoenix-gpu-a100": {
+        "partition": "Phoenix-GPU",
+        "qos": "",
+        "account": "nano",
+        "nodelist": "g1",
+        "gres": "gpu:a100:1",
+        "nodes": 1,
+        "ntasks_per_node": 1,
+        "cpus_per_task": 8,
+        "time": "",
+        "vasp_cmd": "\n".join([
+            "module load nvhpc/22.9_mu",
+            "module load cuda/12.1",
+            "module load gcc/12.3",
+            "module load vasp6.3.2-gpu-mkl",
+            "export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK",
+            "export OMP_PLACES=cores",
+            "export OMP_PROC_BIND=close",
+            "export OMPI_MCA_btl_openib_warn_no_device_params_found=0",
+            "echo \"SLURM_NTASKS = $SLURM_NTASKS\"",
+            "echo \"SLURM_CPUS_PER_TASK = $SLURM_CPUS_PER_TASK\"",
+            "echo \"OMP_NUM_THREADS = $OMP_NUM_THREADS\"",
+            "echo \"CUDA_VISIBLE_DEVICES = $CUDA_VISIBLE_DEVICES\"",
+            "nvidia-smi",
+            "mpirun -np $SLURM_NTASKS vasp_std",
+        ]),
+    },
+    "phoenix-gpu-g3": {
+        "partition": "Phoenix-GPU",
+        "qos": "",
+        "account": "nano",
+        "nodelist": "g3",
+        "gres": "gpu:h100:1",
+        "nodes": 1,
+        "ntasks_per_node": 1,
+        "cpus_per_task": 5,
+        "time": "",
+        "vasp_cmd": "\n".join([
+            "module load nvhpc/22.9_mu",
+            "module load cuda/12.1",
+            "module load gcc/12.3",
+            "module load vasp6.3.2-gpu-mkl",
+            "export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK",
+            "export OMP_PLACES=cores",
+            "export OMP_PROC_BIND=close",
+            "export OMPI_MCA_btl_openib_warn_no_device_params_found=0",
+            "echo \"SLURM_NTASKS = $SLURM_NTASKS\"",
+            "echo \"SLURM_CPUS_PER_TASK = $SLURM_CPUS_PER_TASK\"",
+            "echo \"OMP_NUM_THREADS = $OMP_NUM_THREADS\"",
+            "echo \"CUDA_VISIBLE_DEVICES = $CUDA_VISIBLE_DEVICES\"",
+            "nvidia-smi",
+            "mpirun -np $SLURM_NTASKS vasp_std",
+        ]),
+    },
+}
+
+STANDARD_STAGE_PATHS = {
+    "relax": "relax",
+    "scf": "electronic/scf",
+    "band": "electronic/band",
+    "dos": "electronic/dos",
+}
+
+FCC_BAND_PATH = ["G", "X", "W", "K", "G", "L", "U", "W", "L", "K"]
+FCC_KPOINTS = {
+    "G": (0.0, 0.0, 0.0),
+    "X": (0.0, 0.5, 0.5),
+    "W": (0.25, 0.75, 0.5),
+    "K": (0.375, 0.75, 0.375),
+    "L": (0.5, 0.5, 0.5),
+    "U": (0.625, 0.625, 0.25),
 }
 
 
@@ -329,7 +414,7 @@ def current_input_hashes(taskset: Path) -> dict[str, str]:
 
 def resource_envelope(args: argparse.Namespace) -> dict[str, Any]:
     defaults = PROFILE_DEFAULTS.get(args.profile, PROFILE_DEFAULTS["generic"]).copy()
-    for key in ("partition", "qos", "time", "vasp_cmd"):
+    for key in ("partition", "qos", "account", "nodelist", "gres", "time", "vasp_cmd"):
         value = getattr(args, key.replace("vasp_cmd", "vasp_cmd"), None)
         if value is not None:
             defaults[key] = value
@@ -346,6 +431,257 @@ def resource_envelope(args: argparse.Namespace) -> dict[str, Any]:
 def resource_hash(resources: dict[str, Any], workers: int) -> str:
     payload = {"resources": resources, "workers": workers}
     return sha256_text(json.dumps(payload, sort_keys=True))
+
+
+def standard_task_path(case_root: Path, kind: str) -> Path:
+    if kind not in STANDARD_STAGE_PATHS:
+        raise ValueError(f"unsupported standard task kind: {kind}")
+    return case_root.resolve() / STANDARD_STAGE_PATHS[kind]
+
+
+def standard_hashes(task_dir: Path) -> dict[str, str]:
+    names = ("POSCAR", "INCAR", "KPOINTS", "POTCAR", "job.sh")
+    return {name: sha256_file(task_dir / name) for name in names if (task_dir / name).exists()}
+
+
+def find_structure_source(kind: str, case_root: Path, explicit: Path | None, source_dir: Path | None) -> tuple[Path, str]:
+    if explicit is not None:
+        path = explicit.resolve()
+        if not path.exists():
+            raise FileNotFoundError(path)
+        return path, "explicit --source-poscar"
+    if source_dir is not None:
+        source = source_dir.resolve()
+        for name in ("CONTCAR", "POSCAR"):
+            path = source / name
+            if path.exists():
+                return path, f"{source}/{name}"
+        raise FileNotFoundError(f"source dir has no CONTCAR or POSCAR: {source}")
+    if kind == "relax":
+        path = case_root / "structure" / "POSCAR.initial"
+        if path.exists():
+            return path.resolve(), "structure/POSCAR.initial"
+    if kind in {"scf", "band", "dos"}:
+        path = case_root / "relax" / "CONTCAR"
+        if path.exists():
+            return path.resolve(), "relax/CONTCAR"
+    raise FileNotFoundError("provide --source-poscar or --source-dir so the structure source is explicit")
+
+
+def write_mesh_kpoints(mesh: tuple[int, int, int]) -> str:
+    return "\n".join([
+        "Automatic mesh",
+        "0",
+        "Gamma",
+        dim_to_str(mesh),
+        "0 0 0",
+        "",
+    ])
+
+
+def write_fcc_band_kpoints(line_points: int) -> str:
+    lines = [
+        "FCC path G-X-W-K-G-L-U-W-L-K",
+        str(line_points),
+        "Line-mode",
+        "reciprocal",
+    ]
+    for start, end in zip(FCC_BAND_PATH, FCC_BAND_PATH[1:]):
+        a = FCC_KPOINTS[start]
+        b = FCC_KPOINTS[end]
+        lines.append(f"{a[0]:.8f} {a[1]:.8f} {a[2]:.8f} ! {start}")
+        lines.append(f"{b[0]:.8f} {b[1]:.8f} {b[2]:.8f} ! {end}")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def incar_line(key: str, value: Any) -> str:
+    return f"{key} = {value}"
+
+
+def build_standard_incar(kind: str, args: argparse.Namespace) -> str:
+    if args.encut is None:
+        raise ValueError("--encut is required when using the built-in INCAR template")
+    ediff = standard_ediff(kind, args)
+    common = [
+        incar_line("SYSTEM", f"{kind} generated by vwf"),
+        incar_line("PREC", "Accurate"),
+        incar_line("ENCUT", args.encut),
+        incar_line("EDIFF", ediff),
+        incar_line("ISMEAR", args.ismear),
+        incar_line("SIGMA", args.sigma),
+        incar_line("LREAL", ".FALSE."),
+    ]
+    if args.ncore:
+        common.append(incar_line("NCORE", args.ncore))
+    if kind == "relax":
+        common += [
+            incar_line("EDIFFG", args.ediffg),
+            incar_line("IBRION", args.ibrion),
+            incar_line("NSW", args.nsw),
+            incar_line("ISIF", args.isif),
+            incar_line("LWAVE", ".FALSE."),
+            incar_line("LCHARG", ".FALSE."),
+        ]
+    elif kind == "scf":
+        common += [
+            incar_line("IBRION", -1),
+            incar_line("NSW", 0),
+            incar_line("ISIF", 2),
+            incar_line("LWAVE", ".TRUE."),
+            incar_line("LCHARG", ".TRUE."),
+        ]
+    elif kind == "band":
+        common += [
+            incar_line("IBRION", -1),
+            incar_line("NSW", 0),
+            incar_line("ICHARG", 11),
+            incar_line("LWAVE", ".FALSE."),
+            incar_line("LCHARG", ".FALSE."),
+            incar_line("LORBIT", args.lorbit),
+        ]
+    elif kind == "dos":
+        common += [
+            incar_line("IBRION", -1),
+            incar_line("NSW", 0),
+            incar_line("ICHARG", 11),
+            incar_line("LWAVE", ".FALSE."),
+            incar_line("LCHARG", ".FALSE."),
+            incar_line("LORBIT", args.lorbit),
+            incar_line("NEDOS", args.nedos),
+        ]
+    else:
+        raise ValueError(kind)
+    return "\n".join(common) + "\n"
+
+
+def standard_ediff(kind: str, args: argparse.Namespace) -> str:
+    if args.ediff is not None:
+        return str(args.ediff)
+    if kind == "scf":
+        return DEFAULT_SCF_EDIFF
+    return DEFAULT_RELAX_EDIFF
+
+
+def incar_default_metadata(kind: str, args: argparse.Namespace, used_builtin_template: bool) -> dict[str, Any]:
+    if not used_builtin_template:
+        return {"source": "explicit template", "built_in_defaults": {}, "defaulted": [], "overridden": []}
+    if kind == "relax":
+        defaults = {
+            "EDIFF": DEFAULT_RELAX_EDIFF,
+            "EDIFFG": DEFAULT_RELAX_EDIFFG,
+            "NSW": DEFAULT_RELAX_NSW,
+            "IBRION": 2,
+            "ISIF": 3,
+            "ISMEAR": 0,
+            "SIGMA": "0.05",
+            "PREC": "Accurate",
+            "LREAL": ".FALSE.",
+        }
+        effective = {
+            "EDIFF": standard_ediff(kind, args),
+            "EDIFFG": str(args.ediffg),
+            "NSW": int(args.nsw),
+            "IBRION": int(args.ibrion),
+            "ISIF": int(args.isif),
+            "ISMEAR": int(args.ismear),
+            "SIGMA": str(args.sigma),
+            "PREC": "Accurate",
+            "LREAL": ".FALSE.",
+        }
+        source = "built-in relax template defaults plus CLI overrides"
+        policy = "relax EDIFF fixed at 1E-6 by default; any tightening requires a new review envelope"
+    elif kind == "scf":
+        defaults = {
+            "EDIFF": DEFAULT_SCF_EDIFF,
+            "IBRION": -1,
+            "NSW": 0,
+            "ISIF": 2,
+            "ISMEAR": 0,
+            "SIGMA": "0.05",
+            "PREC": "Accurate",
+            "LREAL": ".FALSE.",
+            "LWAVE": ".TRUE.",
+            "LCHARG": ".TRUE.",
+        }
+        effective = {
+            "EDIFF": standard_ediff(kind, args),
+            "IBRION": -1,
+            "NSW": 0,
+            "ISIF": 2,
+            "ISMEAR": int(args.ismear),
+            "SIGMA": str(args.sigma),
+            "PREC": "Accurate",
+            "LREAL": ".FALSE.",
+            "LWAVE": ".TRUE.",
+            "LCHARG": ".TRUE.",
+        }
+        source = "built-in scf template defaults plus CLI overrides"
+        policy = "SCF EDIFF fixed at 1E-7 by default; changes require review envelope approval"
+    else:
+        return {"source": "built-in template", "built_in_defaults": {}, "defaulted": [], "overridden": []}
+    defaulted = [key for key, value in defaults.items() if effective.get(key) == value]
+    overridden = [
+        {"key": key, "default": defaults[key], "effective": effective[key]}
+        for key in defaults
+        if effective.get(key) != defaults[key]
+    ]
+    metadata = {
+        "source": source,
+        "built_in_defaults": defaults,
+        "defaulted": defaulted,
+        "overridden": overridden,
+        "ediff_policy": policy,
+    }
+    if kind == "relax":
+        metadata["relax_ediffg_policy"] = "fixed at -0.01 by default; changes require review envelope approval"
+    return metadata
+
+
+def build_stage_slurm(job_name: str, resources: dict[str, Any]) -> str:
+    lines = [
+        "#!/bin/bash",
+        f"#SBATCH -J {job_name}",
+        f"#SBATCH -N {resources['nodes']}",
+        f"#SBATCH -n {resources['ntasks']}",
+        f"#SBATCH --ntasks-per-node={resources['ntasks_per_node']}",
+        f"#SBATCH --cpus-per-task={resources['cpus_per_task']}",
+        "#SBATCH -o slurm-%j.out",
+        "#SBATCH -e slurm-%j.err",
+    ]
+    if resources.get("time"):
+        lines.insert(6, f"#SBATCH -t {resources['time']}")
+    if resources.get("partition"):
+        lines.append(f"#SBATCH -p {resources['partition']}")
+    if resources.get("qos"):
+        lines.append(f"#SBATCH -q {resources['qos']}")
+    if resources.get("account"):
+        lines.append(f"#SBATCH -A {resources['account']}")
+    if resources.get("nodelist"):
+        lines.append(f"#SBATCH -w {resources['nodelist']}")
+    if resources.get("gres"):
+        lines.append(f"#SBATCH --gres={resources['gres']}")
+    lines.extend([
+        "",
+        "set -euo pipefail",
+        "cd \"${SLURM_SUBMIT_DIR:-$(dirname \"$0\")}\"",
+        f"{resources['vasp_cmd']} > vasp.out 2> vasp.err",
+        "",
+    ])
+    return "\n".join(lines)
+
+
+def copy_or_link(src: Path, dst: Path, use_link: bool = False) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists() or dst.is_symlink():
+        dst.unlink()
+    if use_link:
+        try:
+            dst.symlink_to(os.path.relpath(src, dst.parent))
+            return
+        except OSError:
+            pass
+    shutil.copy2(src, dst)
 
 
 def make_marker(target: Path, marker: Path) -> None:
@@ -422,6 +758,124 @@ def init_case(args: argparse.Namespace) -> int:
     return 0
 
 
+def prepare_standard(args: argparse.Namespace) -> int:
+    kind = args.task_kind
+    case_root = args.case_root.resolve()
+    task_dir = standard_task_path(case_root, kind)
+    if task_dir.exists() and any(task_dir.iterdir()) and not args.overwrite:
+        raise FileExistsError(f"task directory is not empty; pass --overwrite to replace generated inputs: {task_dir}")
+    task_dir.mkdir(parents=True, exist_ok=True)
+
+    poscar_src, poscar_source_label = find_structure_source(kind, case_root, args.source_poscar, args.source_dir)
+    potcar_src = args.potcar.resolve()
+    if not potcar_src.exists():
+        raise FileNotFoundError(f"POTCAR source does not exist: {potcar_src}")
+
+    copy_or_link(poscar_src, task_dir / "POSCAR")
+    copy_or_link(potcar_src, task_dir / "POTCAR")
+
+    if args.incar_template:
+        incar_src = args.incar_template.resolve()
+        incar_text = incar_src.read_text(encoding="utf-8", errors="replace")
+        incar_source = str(incar_src)
+        used_builtin_incar = False
+    else:
+        incar_text = build_standard_incar(kind, args)
+        incar_source = f"built-in {kind} template with CLI parameters"
+        used_builtin_incar = True
+    atomic_write_text(task_dir / "INCAR", incar_text.rstrip() + "\n")
+
+    kpoints_metadata: dict[str, Any] = {}
+    if kind == "band":
+        if args.kpoints_source:
+            k_src = args.kpoints_source.resolve()
+            copy_or_link(k_src, task_dir / "KPOINTS")
+            kpoints_metadata = {"source": str(k_src), "generator": "explicit --kpoints-source"}
+        else:
+            atomic_write_text(task_dir / "KPOINTS", write_fcc_band_kpoints(args.line_points))
+            kpoints_metadata = {
+                "source": "built-in FCC line-mode template",
+                "generator": "vwf built-in fcc",
+                "band_path": "G-X-W-K-G-L-U-W-L-K",
+                "line_points": args.line_points,
+            }
+    else:
+        if args.kpoints_source:
+            k_src = args.kpoints_source.resolve()
+            copy_or_link(k_src, task_dir / "KPOINTS")
+            kpoints_metadata = {"source": str(k_src), "generator": "explicit --kpoints-source"}
+        else:
+            mesh = parse_triplet(args.kmesh)
+            atomic_write_text(task_dir / "KPOINTS", write_mesh_kpoints(mesh))
+            kpoints_metadata = {
+                "source": f"built-in Gamma mesh {dim_to_str(mesh)}",
+                "generator": "vwf built-in mesh",
+                "mesh": list(mesh),
+            }
+
+    resources = resource_envelope(args)
+    atomic_write_text(task_dir / "job.sh", build_stage_slurm(kind, resources))
+    (task_dir / "job.sh").chmod(0o755)
+
+    for spec in args.stage_from or []:
+        src_str, dst_str, link = spec
+        src = Path(src_str).resolve()
+        if src.exists():
+            copy_or_link(src, task_dir / dst_str, use_link=link)
+
+    hashes = standard_hashes(task_dir)
+    task_spec = {
+        "schema_version": 1,
+        "task_kind": kind,
+        "stage": kind,
+        "case_root": str(case_root),
+        "task_dir": str(task_dir),
+        "input_sources": {
+            "POSCAR": str(poscar_src),
+            "POSCAR_source_note": poscar_source_label,
+            "INCAR": incar_source,
+            "KPOINTS": kpoints_metadata.get("source", "unknown"),
+            "POTCAR": str(potcar_src),
+            "POTCAR_functional": args.potcar_functional,
+            "job.sh": "vwf built-in Slurm template",
+        },
+        "input_hashes": hashes,
+        "kpoints": kpoints_metadata,
+        "incar_defaults": incar_default_metadata(kind, args, used_builtin_incar),
+        "resources": resources,
+        "resource_hash": resource_hash(resources, 1),
+        "created_at": now_iso(),
+    }
+    if kind == "scf":
+        task_spec["dependency"] = "relax/CONTCAR unless overridden"
+    if kind in {"band", "dos"}:
+        task_spec["dependency"] = "electronic/scf CHGCAR/WAVECAR unless overridden"
+    atomic_write_json(task_dir / "task_spec.json", task_spec)
+    print(f"[ok] prepared {kind}: {task_dir}")
+    print(f"[next] run: python -m vwf review submit --taskset {task_dir}")
+    return 0
+
+
+def parse_stage_from(value: str) -> tuple[str, str, bool]:
+    # src[:dst[:link]]; link is "link" or "copy".
+    parts = value.split(":")
+    if len(parts) == 1:
+        src = parts[0]
+        dst = Path(src).name
+        link = False
+    elif len(parts) == 2:
+        src, dst = parts
+        link = False
+    elif len(parts) == 3:
+        src, dst, mode = parts
+        link = mode == "link"
+        if mode not in {"link", "copy"}:
+            raise argparse.ArgumentTypeError("stage-from mode must be 'link' or 'copy'")
+    else:
+        raise argparse.ArgumentTypeError("expected src[:dst[:link|copy]]")
+    return src, dst, link
+
+
 def automation_dir(case_root: Path) -> Path:
     return case_root / "automation"
 
@@ -456,6 +910,19 @@ def default_automation_plan(case_root: Path) -> dict[str, Any]:
                 # Existence gate first (don't parse a half-written run), then the
                 # authoritative check: ionic convergence via `vwf parse`.
                 "completion_files": ["CONTCAR", "OUTCAR"],
+                "incar_defaults": {
+                    "EDIFF": DEFAULT_RELAX_EDIFF,
+                    "EDIFFG": DEFAULT_RELAX_EDIFFG,
+                    "NSW": DEFAULT_RELAX_NSW,
+                    "IBRION": 2,
+                    "ISIF": 3,
+                    "ISMEAR": 0,
+                    "SIGMA": "0.05",
+                    "PREC": "Accurate",
+                    "LREAL": ".FALSE.",
+                },
+                "relax_ediff_policy": "fixed at 1E-6 by default; changes require review envelope approval",
+                "relax_ediffg_policy": "fixed at -0.01 by default; changes require review envelope approval",
                 "require_convergence": True,
                 "detect_failure_from_parse": True,
                 "auto_recover": False,
@@ -479,6 +946,19 @@ def default_automation_plan(case_root: Path) -> dict[str, Any]:
                 # here so it is part of the approved envelope (Safety Model).
                 "inputs_from": [{"stage": "relax", "file": "CONTCAR", "to": "POSCAR"}],
                 "completion_files": ["OUTCAR", "CHGCAR"],
+                "incar_defaults": {
+                    "EDIFF": DEFAULT_SCF_EDIFF,
+                    "IBRION": -1,
+                    "NSW": 0,
+                    "ISIF": 2,
+                    "ISMEAR": 0,
+                    "SIGMA": "0.05",
+                    "PREC": "Accurate",
+                    "LREAL": ".FALSE.",
+                    "LWAVE": ".TRUE.",
+                    "LCHARG": ".TRUE.",
+                },
+                "scf_ediff_policy": "fixed at 1E-7 by default; changes require review envelope approval",
                 "require_convergence": True,
                 "detect_failure_from_parse": True,
                 "auto_recover": False,
@@ -515,6 +995,29 @@ def resolve_stage_path(case_root: Path, stage: dict[str, Any], key: str) -> Path
     return case_root / str(stage.get("path", ".")) / value
 
 
+def stage_current_input_hashes(stage_root: Path) -> dict[str, str] | None:
+    if (stage_root / STATE_NAME).exists():
+        return current_input_hashes(stage_root)
+    if (stage_root / "task_spec.json").exists():
+        return standard_hashes(stage_root)
+    return None
+
+
+def stage_current_resource_hash(stage_root: Path) -> str | None:
+    if (stage_root / STATE_NAME).exists():
+        state = load_json(stage_root / STATE_NAME)
+        if "resources" in state and "workers" in state:
+            return resource_hash(state["resources"], int(state["workers"]))
+        return state.get("resource_hash")
+    if (stage_root / "task_spec.json").exists():
+        task_spec = load_json(stage_root / "task_spec.json")
+        resources = task_spec.get("resources")
+        if isinstance(resources, dict):
+            return resource_hash(resources, 1)
+        return task_spec.get("resource_hash")
+    return None
+
+
 def stage_has_approval(case_root: Path, stage: dict[str, Any]) -> bool:
     review = resolve_stage_path(case_root, stage, "review_file")
     approval = resolve_stage_path(case_root, stage, "approval_file")
@@ -528,12 +1031,23 @@ def stage_has_approval(case_root: Path, stage: dict[str, Any]) -> bool:
         return False
     if payload.get("review_hash"):
         review_text = review.read_text(encoding="utf-8", errors="replace")
-        return payload.get("review_hash") == sha256_text(review_text)
+        if payload.get("review_hash") != sha256_text(review_text):
+            return False
+    else:
+        return False
+    stage_root = case_root / str(stage.get("path", "."))
+    if payload.get("input_hashes") != stage_current_input_hashes(stage_root):
+        return False
+    if payload.get("resource_hash") != stage_current_resource_hash(stage_root):
+        return False
     return True
 
 
 def stage_complete(case_root: Path, stage: dict[str, Any]) -> bool:
     stage_root = case_root / str(stage.get("path", "."))
+    if stage.get("kind") == "phonon-fd-worker-queue":
+        counts = fd_queue_counts(stage_root)
+        return counts["total"] > 0 and counts["done"] == counts["total"]
     for rel in stage.get("completion_files", []):
         if not (stage_root / str(rel)).exists():
             return False
@@ -552,6 +1066,11 @@ def stage_complete(case_root: Path, stage: dict[str, Any]) -> bool:
 
 def stage_failed(case_root: Path, stage: dict[str, Any]) -> bool:
     stage_root = case_root / str(stage.get("path", "."))
+    if stage.get("kind") == "phonon-fd-worker-queue":
+        counts = fd_queue_counts(stage_root)
+        if stage.get("fail_fast"):
+            return counts["failed"] > 0
+        return counts["failed"] > 0 and counts["undo"] == 0 and counts["calculating"] == 0
     for rel in stage.get("failure_files", []):
         path = stage_root / str(rel)
         if path.exists() and path.stat().st_size > 0:
@@ -571,6 +1090,28 @@ def stage_failed(case_root: Path, stage: dict[str, Any]) -> bool:
         if result.get("finished") and result.get("converged") is False:
             return True
     return False
+
+
+def fd_queue_counts(taskset: Path) -> dict[str, int]:
+    counts = {"total": 0, "undo": 0, "calculating": 0, "done": 0, "failed": 0}
+    state_path = taskset / STATE_NAME
+    if state_path.exists():
+        try:
+            state = load_json(state_path)
+            for job in state.get("jobs", {}).values():
+                status = str(job.get("status", "undo"))
+                if status in counts:
+                    counts[status] += 1
+                counts["total"] += 1
+            return counts
+        except Exception:
+            pass
+    for name in QUEUE_STATES:
+        directory = taskset / "queue" / name
+        if directory.exists():
+            counts[name] = len([p for p in directory.iterdir() if not p.name.startswith(".")])
+    counts["total"] = sum(counts[name] for name in QUEUE_STATES)
+    return counts
 
 
 def squeue_state(job_id: str) -> str | None:
@@ -824,6 +1365,12 @@ def automation_tick(args: argparse.Namespace) -> int:
         if not args.dry_run:
             automation_log(case_root, message)
 
+    def block(stage: dict[str, Any], reason: str) -> None:
+        stage["status"] = "blocked"
+        stage["blocked_reason"] = reason
+        print(f"[blocked] {stage['name']}: {reason}")
+        log(f"{stage['name']} -> blocked: {reason}")
+
     for stage in stages:
         status = stage.get("status", "planned")
         if status in {"submitted", "running"}:
@@ -840,9 +1387,7 @@ def automation_tick(args: argparse.Namespace) -> int:
                 if queue_state:
                     stage["status"] = "running" if queue_state == "RUNNING" else "submitted"
                 elif queue_state == "":
-                    stage["status"] = "blocked"
-                    stage["blocked_reason"] = "job left Slurm queue but completion criteria are not satisfied"
-                    log(f"{stage['name']} -> blocked: {stage['blocked_reason']}")
+                    block(stage, "job left Slurm queue but completion criteria are not satisfied")
                     changed = True
 
     for stage in stages:
@@ -863,10 +1408,7 @@ def automation_tick(args: argparse.Namespace) -> int:
                 print(f"[stage-inputs] {stage['name']}: {msg}")
                 log(f"{stage['name']} staged {msg}")
             if staging["missing"]:
-                stage["status"] = "blocked"
-                stage["blocked_reason"] = "required staged input missing: " + ", ".join(staging["missing"])
-                print(f"[blocked] {stage['name']}: {stage['blocked_reason']}")
-                log(f"{stage['name']} -> blocked: {stage['blocked_reason']}")
+                block(stage, "required staged input missing: " + ", ".join(staging["missing"]))
                 changed = True
                 continue
             stage["status"] = "ready"
@@ -880,10 +1422,7 @@ def automation_tick(args: argparse.Namespace) -> int:
             print(f"[ready] {stage['name']} (auto_submit=false)")
             continue
         if not stage_has_approval(case_root, stage):
-            stage["status"] = "blocked"
-            stage["blocked_reason"] = "missing review or approved submission_approval.json"
-            print(f"[blocked] {stage['name']}: {stage['blocked_reason']}")
-            log(f"{stage['name']} -> blocked: {stage['blocked_reason']}")
+            block(stage, "missing review or approved submission_approval.json")
             changed = True
             continue
         command = str(stage["submit_command"])
@@ -895,9 +1434,7 @@ def automation_tick(args: argparse.Namespace) -> int:
         (stage_cwd / "automation_submit.out").write_text(result.stdout, encoding="utf-8")
         (stage_cwd / "automation_submit.err").write_text(result.stderr, encoding="utf-8")
         if result.returncode != 0:
-            stage["status"] = "blocked"
-            stage["blocked_reason"] = f"submit command exited {result.returncode}"
-            log(f"{stage['name']} -> blocked: {stage['blocked_reason']}")
+            block(stage, f"submit command exited {result.returncode}")
         else:
             match = JOB_ID_RE.search(result.stdout + "\n" + result.stderr)
             stage["job_id"] = match.group(1) if match else None
@@ -906,12 +1443,109 @@ def automation_tick(args: argparse.Namespace) -> int:
             log(f"{stage['name']} -> submitted job_id={stage.get('job_id')}")
         changed = True
 
+    for stage in stages:
+        if stage.get("status") in {"blocked", "failed"}:
+            reason = str(stage.get("blocked_reason") or stage.get("fail_reason") or stage.get("status"))
+            key = sha256_text(f"{stage.get('name')}|{stage.get('status')}|{reason}")
+            if stage.get("last_escalation_key") != key:
+                if not args.dry_run:
+                    record_human_review(case_root, plan, stage, reason)
+                    stage["last_escalation_key"] = key
+                changed = True
+
     if changed and not args.dry_run:
         plan["updated_at"] = now_iso()
         atomic_write_json(plan_path, plan)
     for stage in stages:
         print(f"{stage['name']}: {stage.get('status', 'planned')} job_id={stage.get('job_id')}")
     return 0
+
+
+def record_human_review(case_root: Path, plan: dict[str, Any], stage: dict[str, Any], reason: str) -> None:
+    directory = automation_dir(case_root)
+    directory.mkdir(parents=True, exist_ok=True)
+    item = {
+        "created_at": now_iso(),
+        "stage": stage.get("name"),
+        "status": stage.get("status"),
+        "reason": reason,
+        "path": str(case_root / str(stage.get("path", "."))),
+        "job_id": stage.get("job_id"),
+        "recommendation": stage.get("recommendation") or stage.get("blocked_recommendation"),
+    }
+    with (directory / "review_queue.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(item, ensure_ascii=False, sort_keys=True) + "\n")
+    with (directory / "review_queue.dat").open("a", encoding="utf-8") as f:
+        f.write(
+            f"{item['created_at']} stage={item['stage']} status={item['status']} "
+            f"reason={item['reason']} path={item['path']} job_id={item.get('job_id')}\n"
+        )
+    notify = str(plan.get("notify_command", "")).strip()
+    if notify:
+        env = os.environ.copy()
+        env.update({
+            "VWF_CASE_ROOT": str(case_root),
+            "VWF_STAGE": str(item["stage"]),
+            "VWF_STATUS": str(item["status"]),
+            "VWF_REASON": reason,
+            "VWF_STAGE_PATH": str(item["path"]),
+        })
+        result = subprocess.run(notify, cwd=case_root, shell=True, text=True, capture_output=True, env=env)
+        with (directory / "notify.out").open("a", encoding="utf-8") as f:
+            f.write(result.stdout)
+        with (directory / "notify.err").open("a", encoding="utf-8") as f:
+            f.write(result.stderr)
+
+
+def automation_review(args: argparse.Namespace) -> int:
+    case_root = args.case_root.resolve()
+    path = automation_dir(case_root) / "review_queue.jsonl"
+    if not path.exists():
+        print("[ok] no review queue")
+        return 0
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for line in lines:
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            print(line)
+            continue
+        print(f"{item.get('created_at')} {item.get('stage')} {item.get('status')}: {item.get('reason')}")
+        print(f"  path: {item.get('path')}")
+    if args.clear:
+        archive = automation_dir(case_root) / f"review_queue.{int(time.time())}.jsonl"
+        path.rename(archive)
+        dat = automation_dir(case_root) / "review_queue.dat"
+        if dat.exists():
+            dat.rename(automation_dir(case_root) / f"review_queue.{int(time.time())}.dat")
+        print(f"[ok] archived review queue -> {archive}")
+    return 0
+
+
+def automation_watch(args: argparse.Namespace) -> int:
+    case_root = args.case_root.resolve()
+    cycles = 0
+    while True:
+        tick_args = argparse.Namespace(case_root=case_root, dry_run=args.dry_run)
+        automation_tick(tick_args)
+        plan = load_json(automation_plan_path(case_root))
+        statuses = [stage.get("status", "planned") for stage in plan.get("stages", [])]
+        if statuses and all(status == "done" for status in statuses):
+            print("[done] all stages completed")
+            return 0
+        if args.stop_on_blocked and any(status in {"blocked", "failed"} for status in statuses):
+            print("[blocked] watch stopped for human review")
+            return 2
+        if args.max_resubmit is not None:
+            retries = sum(int(stage.get("retry_count", 0)) for stage in plan.get("stages", []))
+            if retries >= args.max_resubmit:
+                print(f"[blocked] max resubmit/recovery attempts reached: {retries}/{args.max_resubmit}")
+                return 2
+        cycles += 1
+        if args.max_cycles and cycles >= args.max_cycles:
+            print(f"[stop] max cycles reached: {cycles}")
+            return 1
+        time.sleep(args.interval_seconds)
 
 
 def automation_cron_line(args: argparse.Namespace) -> int:
@@ -1074,6 +1708,7 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
             "POSCAR": str((source / "POSCAR").resolve()),
             "KPOINTS": str((source / "KPOINTS").resolve()),
             "POTCAR": str((source / "POTCAR").resolve()),
+            "POTCAR_functional": args.potcar_functional,
             "INCAR.fd": incar_source,
         },
         "input_hashes": hashes,
@@ -1130,6 +1765,7 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
         "INCAR.complete_end",
         *infer_kpoints_review(input_dir / "KPOINTS", state, hashes),
         f"POTCAR.source = {state['input_sources'].get('POTCAR', 'unknown')}",
+        f"POTCAR.functional = {state['input_sources'].get('POTCAR_functional', DEFAULT_POTCAR_FUNCTIONAL)}",
         f"POTCAR.sha256 = {hashes.get('POTCAR', 'missing')}",
         f"POTCAR.summary = {read_potcar_summary(input_dir / 'POTCAR')}",
         "POTCAR.user_choice_required = true",
@@ -1140,6 +1776,9 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
         f"profile = {resources.get('profile')}",
         f"partition = {resources.get('partition')}",
         f"qos = {resources.get('qos')}",
+        f"account = {resources.get('account')}",
+        f"nodelist = {resources.get('nodelist')}",
+        f"gres = {resources.get('gres')}",
         f"nodes = {resources.get('nodes')}",
         f"ntasks = {resources.get('ntasks')}",
         f"ntasks_per_node = {resources.get('ntasks_per_node')}",
@@ -1158,24 +1797,132 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) -> str:
+    hashes = standard_hashes(task_dir)
+    resources = task_spec.get("resources", {})
+    lines = [
+        "# vasp_workflow_submission_review = 1",
+        f"generated_at = {now_iso()}",
+        f"task_dir = {task_dir}",
+        f"kind = {task_spec.get('task_kind')}",
+        f"workflow_stage = {task_spec.get('stage')}",
+        f"dependency = {task_spec.get('dependency', 'none or explicit user source')}",
+        "",
+        "[inputs]",
+        f"POSCAR.source = {task_spec.get('input_sources', {}).get('POSCAR', 'unknown')}",
+        f"POSCAR.source_note = {task_spec.get('input_sources', {}).get('POSCAR_source_note', 'unknown')}",
+        f"POSCAR.sha256 = {hashes.get('POSCAR', 'missing')}",
+        f"POSCAR.summary = {read_poscar_summary(task_dir / 'POSCAR')}",
+        *read_poscar_details(task_dir / "POSCAR"),
+        f"INCAR.source = {task_spec.get('input_sources', {}).get('INCAR', 'unknown')}",
+        f"INCAR.sha256 = {hashes.get('INCAR', 'missing')}",
+        f"INCAR.summary = {read_incar_summary(task_dir / 'INCAR')}",
+    ]
+    incar_defaults = task_spec.get("incar_defaults")
+    if isinstance(incar_defaults, dict) and incar_defaults.get("built_in_defaults"):
+        defaults = incar_defaults.get("built_in_defaults", {})
+        defaulted = " ".join(str(x) for x in incar_defaults.get("defaulted", [])) or "none"
+        overridden = incar_defaults.get("overridden", [])
+        overridden_text = (
+            " ".join(f"{item.get('key')}:{item.get('default')}->{item.get('effective')}" for item in overridden)
+            if overridden
+            else "none"
+        )
+        lines.extend([
+            f"INCAR.default_source = {incar_defaults.get('source', 'unknown')}",
+            "INCAR.built_in_defaults = " + " ".join(f"{key}={value}" for key, value in defaults.items()),
+            f"INCAR.defaulted_keys = {defaulted}",
+            f"INCAR.overridden_keys = {overridden_text}",
+        ])
+        if incar_defaults.get("ediff_policy"):
+            lines.append(f"INCAR.ediff_policy = {incar_defaults['ediff_policy']}")
+        if incar_defaults.get("relax_ediffg_policy"):
+            lines.append(f"INCAR.relax_ediffg_policy = {incar_defaults['relax_ediffg_policy']}")
+    lines.extend([
+        "INCAR.change_review = confirm complete effective INCAR and any inherited/appended/overridden parameters",
+        "INCAR.complete_begin",
+        read_text_block(task_dir / "INCAR"),
+        "INCAR.complete_end",
+        f"KPOINTS.source = {task_spec.get('input_sources', {}).get('KPOINTS', 'unknown')}",
+        f"KPOINTS.sha256 = {hashes.get('KPOINTS', 'missing')}",
+        f"KPOINTS.summary = {read_kpoints_summary(task_dir / 'KPOINTS')}",
+    ])
+    kpoints = task_spec.get("kpoints", {})
+    if isinstance(kpoints, dict):
+        if kpoints.get("generator"):
+            lines.append(f"KPOINTS.generator = {kpoints['generator']}")
+        if kpoints.get("mesh"):
+            lines.append("KPOINTS.mesh = " + " ".join(str(x) for x in kpoints["mesh"]))
+        if kpoints.get("band_path"):
+            lines.append(f"KPOINTS.band_path = {kpoints['band_path']}")
+    lines.extend([
+        "KPOINTS.generator_env_review = if VASPKIT/pymatgen/SeeK-path is expected but missing, stop and activate/install the environment",
+        f"POTCAR.source = {task_spec.get('input_sources', {}).get('POTCAR', 'unknown')}",
+        f"POTCAR.functional = {task_spec.get('input_sources', {}).get('POTCAR_functional', DEFAULT_POTCAR_FUNCTIONAL)}",
+        f"POTCAR.sha256 = {hashes.get('POTCAR', 'missing')}",
+        f"POTCAR.summary = {read_potcar_summary(task_dir / 'POTCAR')}",
+        "POTCAR.user_choice_required = true",
+        "POTCAR.choice_review = user must confirm functional, element order, and potential labels before generation/submission",
+        "POTCAR.public_repo_rule = do not commit or publish POTCAR contents",
+        f"job.sh.sha256 = {hashes.get('job.sh', 'missing')}",
+        "",
+        "[resources]",
+        f"profile = {resources.get('profile')}",
+        f"partition = {resources.get('partition')}",
+        f"qos = {resources.get('qos')}",
+        f"account = {resources.get('account')}",
+        f"nodelist = {resources.get('nodelist')}",
+        f"gres = {resources.get('gres')}",
+        f"nodes = {resources.get('nodes')}",
+        f"ntasks = {resources.get('ntasks')}",
+        f"ntasks_per_node = {resources.get('ntasks_per_node')}",
+        f"cpus_per_task = {resources.get('cpus_per_task')}",
+        f"walltime = {resources.get('time')}",
+        f"vasp_cmd = {resources.get('vasp_cmd')}",
+        "",
+        "[approval]",
+        "User must confirm the inputs and resources above before sbatch.",
+    ])
+    return "\n".join(lines) + "\n"
+
+
 def review_submit(args: argparse.Namespace) -> int:
     taskset = args.taskset.resolve()
-    state = load_state(taskset)
-    review_text = build_submission_review(taskset, state)
-    review_path = taskset / "input" / REVIEW_NAME
+    if (taskset / STATE_NAME).exists():
+        state = load_state(taskset)
+        review_text = build_submission_review(taskset, state)
+        review_path = taskset / "input" / REVIEW_NAME
+        hashes = current_input_hashes(taskset)
+        approval_path = taskset / "input" / APPROVAL_NAME
+        approval = {
+            "schema_version": 1,
+            "approved": bool(args.approve),
+            "approved_at": now_iso() if args.approve else None,
+            "review_path": str(review_path),
+            "review_hash": sha256_text(review_text),
+            "input_hashes": hashes,
+            "resource_hash": state["resource_hash"],
+            "workers": state["workers"],
+        }
+    elif (taskset / "task_spec.json").exists():
+        task_spec = load_json(taskset / "task_spec.json")
+        review_text = build_standard_submission_review(taskset, task_spec)
+        review_path = taskset / REVIEW_NAME
+        hashes = standard_hashes(taskset)
+        approval_path = taskset / APPROVAL_NAME
+        approval = {
+            "schema_version": 1,
+            "approved": bool(args.approve),
+            "approved_at": now_iso() if args.approve else None,
+            "review_path": str(review_path),
+            "review_hash": sha256_text(review_text),
+            "input_hashes": hashes,
+            "resource_hash": task_spec.get("resource_hash"),
+        }
+    else:
+        raise FileNotFoundError(f"cannot find {STATE_NAME} or task_spec.json in {taskset}")
     atomic_write_text(review_path, review_text)
-    hashes = current_input_hashes(taskset)
-    approval = {
-        "schema_version": 1,
-        "approved": bool(args.approve),
-        "approved_at": now_iso() if args.approve else None,
-        "review_path": str(review_path),
-        "review_hash": sha256_text(review_text),
-        "input_hashes": hashes,
-        "resource_hash": state["resource_hash"],
-        "workers": state["workers"],
-    }
-    atomic_write_json(taskset / "input" / APPROVAL_NAME, approval)
+    atomic_write_json(approval_path, approval)
     print(review_text.rstrip())
     print(f"[wrote] {review_path}")
     if args.approve:
@@ -1360,6 +2107,49 @@ def cmd_parse(args: argparse.Namespace) -> int:
     return 0
 
 
+def add_resource_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--profile", choices=sorted(PROFILE_DEFAULTS), default="generic")
+    parser.add_argument("--partition", default=None)
+    parser.add_argument("--qos", default=None)
+    parser.add_argument("--account", default=None)
+    parser.add_argument("--nodelist", default=None)
+    parser.add_argument("--gres", default=None)
+    parser.add_argument("--nodes", type=int, default=None)
+    parser.add_argument("--ntasks", type=int, default=None)
+    parser.add_argument("--ntasks-per-node", type=int, default=None, dest="ntasks_per_node")
+    parser.add_argument("--cpus-per-task", type=int, default=None, dest="cpus_per_task")
+    parser.add_argument("--time", default=None)
+    parser.add_argument("--vasp-cmd", default=None)
+
+
+def add_standard_prepare_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser], kind: str) -> None:
+    parser = subparsers.add_parser(kind)
+    parser.add_argument("--case-root", type=Path, required=True)
+    parser.add_argument("--source-poscar", type=Path, default=None)
+    parser.add_argument("--source-dir", type=Path, default=None)
+    parser.add_argument("--potcar", type=Path, required=True, help="Explicit POTCAR source chosen by the user.")
+    parser.add_argument("--potcar-functional", default=DEFAULT_POTCAR_FUNCTIONAL)
+    parser.add_argument("--incar-template", type=Path, default=None)
+    parser.add_argument("--kpoints-source", type=Path, default=None)
+    parser.add_argument("--kmesh", default="1 1 1")
+    parser.add_argument("--encut", type=int, default=None)
+    parser.add_argument("--ediff", default=None)
+    parser.add_argument("--ediffg", default=DEFAULT_RELAX_EDIFFG)
+    parser.add_argument("--ibrion", type=int, default=2)
+    parser.add_argument("--isif", type=int, default=3)
+    parser.add_argument("--nsw", type=int, default=DEFAULT_RELAX_NSW)
+    parser.add_argument("--ismear", type=int, default=0)
+    parser.add_argument("--sigma", default="0.05")
+    parser.add_argument("--lorbit", type=int, default=11)
+    parser.add_argument("--nedos", type=int, default=2001)
+    parser.add_argument("--line-points", type=int, default=20)
+    parser.add_argument("--ncore", type=int, default=None)
+    parser.add_argument("--stage-from", type=parse_stage_from, action="append", default=[])
+    parser.add_argument("--overwrite", action="store_true")
+    add_resource_args(parser)
+    parser.set_defaults(func=prepare_standard, task_kind=kind)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="vwf", description="VASP workflow helper for skill-managed tasks.")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -1370,22 +2160,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_prepare = sub.add_parser("prepare")
     prep_sub = p_prepare.add_subparsers(dest="prepare_cmd", required=True)
+    for kind in ("relax", "scf", "band", "dos"):
+        add_standard_prepare_parser(prep_sub, kind)
     p_fd = prep_sub.add_parser("phonon-fd")
     p_fd.add_argument("--case-root", type=Path, required=True)
     p_fd.add_argument("--taskset", required=True)
     p_fd.add_argument("--source-dir", type=Path, default=None)
+    p_fd.add_argument("--potcar-functional", default=DEFAULT_POTCAR_FUNCTIONAL)
     p_fd.add_argument("--dim", default="1 1 1")
     p_fd.add_argument("--displacement-distance", type=float, default=0.01)
     p_fd.add_argument("--workers", type=int, default=5)
-    p_fd.add_argument("--profile", choices=sorted(PROFILE_DEFAULTS), default="generic")
-    p_fd.add_argument("--partition", default=None)
-    p_fd.add_argument("--qos", default=None)
-    p_fd.add_argument("--nodes", type=int, default=None)
-    p_fd.add_argument("--ntasks", type=int, default=None)
-    p_fd.add_argument("--ntasks-per-node", type=int, default=None, dest="ntasks_per_node")
-    p_fd.add_argument("--cpus-per-task", type=int, default=None, dest="cpus_per_task")
-    p_fd.add_argument("--time", default=None)
-    p_fd.add_argument("--vasp-cmd", default=None)
+    add_resource_args(p_fd)
     p_fd.add_argument("--phonopy-bin", default="phonopy")
     p_fd.add_argument("--incar-template", type=Path, default=None)
     p_fd.add_argument("--copy-source-incar", action="store_true")
@@ -1441,6 +2226,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_auto_tick.add_argument("--case-root", type=Path, required=True)
     p_auto_tick.add_argument("--dry-run", action="store_true")
     p_auto_tick.set_defaults(func=automation_tick)
+    p_auto_watch = auto_sub.add_parser("watch")
+    p_auto_watch.add_argument("--case-root", type=Path, required=True)
+    p_auto_watch.add_argument("--interval-seconds", type=float, default=60.0)
+    p_auto_watch.add_argument("--max-cycles", type=int, default=0)
+    p_auto_watch.add_argument("--max-resubmit", type=int, default=None)
+    p_auto_watch.add_argument("--stop-on-blocked", action="store_true", default=True)
+    p_auto_watch.add_argument("--dry-run", action="store_true")
+    p_auto_watch.set_defaults(func=automation_watch)
+    p_auto_review = auto_sub.add_parser("review")
+    p_auto_review.add_argument("--case-root", type=Path, required=True)
+    p_auto_review.add_argument("--clear", action="store_true")
+    p_auto_review.set_defaults(func=automation_review)
     p_auto_cron = auto_sub.add_parser("cron-line")
     p_auto_cron.add_argument("--case-root", type=Path, required=True)
     p_auto_cron.add_argument("--interval-minutes", type=int, default=10)

@@ -28,6 +28,8 @@ Recommended defaults for submit scripts:
 - CPU partition: `<partition>`
 - `--ntasks-per-node`: `<cpu per node>`
 - GPU partition: `<partition>`
+- GPU node selection: `<nodelist or leave blank>`
+- GPU GRES: `<gpu:type:count>`
 - VASP command: `<mpirun/srun command>`
 - Required modules: `<module list>`
 - Account/QoS constraints: `<account/qos>`
@@ -40,5 +42,5 @@ Recommended defaults for submit scripts:
   INCAR, KPOINTS, or POTCAR just to make a performance test faster unless the
   user explicitly approves that scientific change.
 - The submit review must still show POSCAR/INCAR/KPOINTS/POTCAR provenance,
-  hashes, partition, node count, task count, worker count, wall time, and VASP
-  command before any `sbatch`.
+  hashes, partition, account, nodelist, GRES, node count, task count, worker
+  count, wall time, and VASP command before any `sbatch`.

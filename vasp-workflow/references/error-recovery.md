@@ -1,7 +1,7 @@
 # Error Recovery
 
-Automatic recovery is useful, but it is also where workflow automation can do
-quiet damage. Keep it explicit, logged, and bounded.
+Automatic recovery is optional. Use it only when the user asks for automated
+handoff or retry behavior, and keep it explicit, logged, and bounded.
 
 ## Preferred Helpers
 
@@ -28,6 +28,10 @@ environment before enabling automated correction.
 - A recovery command must not silently change KPOINTS, ENCUT, POTCAR, structure,
   magnetic order, smearing, or other scientific parameters outside the approved
   review envelope.
+- General relax defaults are fixed at `EDIFF=1E-6` and `EDIFFG=-0.01`; SCF
+  defaults are fixed at `EDIFF=1E-7`. Automatic recovery must not tighten or
+  loosen these values unless the current review envelope explicitly approved
+  that parameter change.
 - Stop after `max_retries`; mark the stage `blocked` and wait for Agent/user
   review.
 

@@ -1,19 +1,31 @@
-# Automation And Cron
+# Optional Automation And Cron
 
-Current behavior: `vasp-workflow` does not automatically submit SCF, band, DOS,
-phonon, or analysis tasks after relax unless an automation plan is installed and
-approved. Without automation, an Agent or user must detect completion, prepare
-the next task, generate review, get approval, and submit.
+Use this reference only when the user explicitly asks for automatic handoff,
+cron polling, or bounded retry behavior. Automation is a helper path, not the
+core value of this skill.
 
-Preferred production behavior: use a workflow-level automation plan so a small
-cron-driven tick script can monitor Slurm and hand off stages without Agent
-intervention. The Agent's job becomes audit, repair, and scientific review.
+Current behavior: `vasp-workflow` can prepare standard relax, SCF, band, and DOS
+stage directories, and can run a small cron/watch state machine when an
+automation plan is installed and approved. Without automation, an Agent or user
+detects completion, prepares/reviews the next task, gets approval, and submits.
+
+Use automation only after the workflow order, stage inputs, scientific
+parameters, POTCAR choices, and resource envelopes have already been reviewed.
+The Agent's job remains audit, repair, and scientific review; cron only polls
+and submits approved stages.
 
 ## Safety Model
 
 - Approve the dependency graph before automation starts.
 - Approve scientific parameters, POTCAR choices, structure sources, and resource
   envelopes before the first automated submit.
+- Built-in relax defaults may be prefilled (`EDIFF=1E-6`, `EDIFFG=-0.01`,
+  `NSW=80`), but they are still part of the reviewed envelope.
+- Built-in SCF defaults may be prefilled with `EDIFF=1E-7`, `IBRION=-1`, and
+  `NSW=0`, but they are still part of the reviewed envelope.
+- General relax automation does not use a convergence ladder by default. It
+  must keep relax `EDIFF=1E-6` and `EDIFFG=-0.01` unless the review envelope
+  explicitly approves a different value.
 - Each stage still needs `submission_review.dat` and
   `submission_approval.json`; cron may only submit when the approval matches the
   current stage files.
@@ -52,6 +64,19 @@ actual case, for example:
       "review_file": "submission_review.dat",
       "approval_file": "submission_approval.json",
       "completion_files": ["CONTCAR", "OUTCAR"],
+      "incar_defaults": {
+        "EDIFF": "1E-6",
+        "EDIFFG": "-0.01",
+        "NSW": 80,
+        "IBRION": 2,
+        "ISIF": 3,
+        "ISMEAR": 0,
+        "SIGMA": "0.05",
+        "PREC": "Accurate",
+        "LREAL": ".FALSE."
+      },
+      "relax_ediff_policy": "fixed at 1E-6 by default; changes require review envelope approval",
+      "relax_ediffg_policy": "fixed at -0.01 by default; changes require review envelope approval",
       "require_convergence": true,
       "detect_failure_from_parse": true,
       "auto_recover": false,
@@ -68,6 +93,19 @@ actual case, for example:
       "approval_file": "submission_approval.json",
       "inputs_from": [{"stage": "relax", "file": "CONTCAR", "to": "POSCAR"}],
       "completion_files": ["OUTCAR", "CHGCAR"],
+      "incar_defaults": {
+        "EDIFF": "1E-7",
+        "IBRION": -1,
+        "NSW": 0,
+        "ISIF": 2,
+        "ISMEAR": 0,
+        "SIGMA": "0.05",
+        "PREC": "Accurate",
+        "LREAL": ".FALSE.",
+        "LWAVE": ".TRUE.",
+        "LCHARG": ".TRUE."
+      },
+      "scf_ediff_policy": "fixed at 1E-7 by default; changes require review envelope approval",
       "require_convergence": true,
       "detect_failure_from_parse": true,
       "auto_recover": false,
@@ -77,6 +115,26 @@ actual case, for example:
   ]
 }
 ```
+
+For FD phonons, add a taskset stage after preparing it with
+`prepare phonon-fd`:
+
+```json
+{
+  "name": "phonon-fd",
+  "kind": "phonon-fd-worker-queue",
+  "depends_on": ["relax"],
+  "path": "phonon/fd/fd-001",
+  "status": "planned",
+  "submit_command": "python -m vwf submit workers --taskset ./phonon/fd/fd-001 --approved",
+  "review_file": "input/submission_review.dat",
+  "approval_file": "input/submission_approval.json"
+}
+```
+
+The tick treats this kind as complete only when every displacement job is
+`done`; it fails when queue jobs enter `failed` and no work remains, or
+immediately with `fail_fast: true`.
 
 ## Completion Is Judged By Convergence, Not Exit Code
 
@@ -171,6 +229,41 @@ These derivations are part of the approved envelope (see the Safety Model:
 "SCF may use relax/CONTCAR"), so staging does **not** invalidate a stage's
 review/approval — it only materializes inputs the dependency graph already
 declared. It will not run until the upstream stage has converged.
+
+## Watch Loop
+
+Use `watch` for an interactive blocking run instead of cron:
+
+```bash
+python -m vwf automation watch \
+  --case-root ./SiC \
+  --interval-seconds 300 \
+  --max-resubmit 5
+```
+
+`watch` calls the same `tick` loop repeatedly, exits `0` when all stages are
+`done`, exits `2` on blocked/failed stages, and exits `1` on `--max-cycles`.
+Use cron when you want the login node to keep polling after the shell exits.
+
+## Human Review Queue
+
+Whenever a stage becomes `blocked` or `failed`, automation appends a review item
+to:
+
+```text
+automation/review_queue.dat
+automation/review_queue.jsonl
+```
+
+Inspect it with:
+
+```bash
+python -m vwf automation review --case-root ./SiC
+```
+
+Set `notify_command` in `workflow_plan.json` to run a local notification hook.
+The command receives `VWF_CASE_ROOT`, `VWF_STAGE`, `VWF_STATUS`, `VWF_REASON`,
+and `VWF_STAGE_PATH` in the environment.
 
 ## Cron
 

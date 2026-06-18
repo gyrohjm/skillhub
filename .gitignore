@@ -1,0 +1,26 @@
+.DS_Store
+**/.DS_Store
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+
+# Local/private cluster and credential-adjacent configuration
+.env
+.env.*
+!.env.example
+*.local
+*.local.*
+*credential*
+*credentials*
+*secret*
+*token*
+cluster-profiles.local.md
+potcar-catalog.local.json
+
+# Historical/reference material kept locally.
+archived/
+
+# Local backups of former nested skill repositories.
+.git-history-backups/

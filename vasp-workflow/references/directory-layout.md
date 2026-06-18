@@ -7,6 +7,8 @@ Create every material or configuration under one case root:
   structure/
     POSCAR.initial
     metadata.json
+    candidates.dat
+    source.cif
   test/
     encut/
     kpoints/
@@ -42,6 +44,8 @@ Create every material or configuration under one case root:
   automation/
     workflow_plan.json
     automation.log
+    review_queue.dat
+    review_queue.jsonl
   workflow.json
 ```
 
@@ -55,6 +59,11 @@ Use `task_spec.json` in each task directory to record:
 - submit script path and job id when known,
 - notes about user-approved scientific parameters.
 
+Under `structure/`, keep `metadata.json` for provenance. When a structure was
+researched from databases or literature, `candidates.dat` should record the
+candidate comparison and `source.cif` (or another source file) may be kept when
+licensing allows.
+
 Use `test/` only for convergence or sensitivity scans. Once a production
 parameter set is selected, record the chosen values and then prepare `relax/`.
 Do not feed `test/` outputs into downstream production tasks unless the user
@@ -65,6 +74,11 @@ tasks should point at a specific relaxed `CONTCAR` and record its hash.
 
 Use `electronic/scf/` for the static calculation that produces final energy,
 `WAVECAR`, and `CHGCAR` for downstream electronic analysis.
+
+Use standard stage task directories (`relax/`, `electronic/scf`,
+`electronic/band`, `electronic/dos`) as ordinary VASP run folders containing
+`POSCAR`, `INCAR`, `KPOINTS`, `POTCAR`, `job.sh`, `task_spec.json`,
+`submission_review.dat`, and `submission_approval.json`.
 
 Do not infer that the latest-looking directory is safe to use. Check the
 dependency recorded in `task_spec.json` or ask the user when the source cannot

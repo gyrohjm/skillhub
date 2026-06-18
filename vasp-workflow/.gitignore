@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 .queue.lock
 references/cluster-profiles.local.md
+references/potcar-catalog.local.json

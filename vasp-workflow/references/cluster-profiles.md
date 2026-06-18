@@ -28,9 +28,12 @@ df -h /home
 ```
 
 The workflow CLI can render Slurm scripts from `--profile nmg`,
-`--profile phoenix`, or `--profile generic`, but the submit review must show the
-actual partition, node count, task count, wall time, and VASP command before
-submission.
+`--profile phoenix`, `--profile phoenix-gpu-a100`,
+`--profile phoenix-gpu-g3`, or `--profile generic`, but the submit review must
+show the actual partition, node count, task count, wall time, and VASP command
+before submission. For Phoenix CPU/GPU submission templates and G3/H100
+cautions, read `phoenix-submit.md`.
 
-G3/H100 is high risk. Require live checks and a short validation job before
-production VASP, especially for GPU builds and module stacks.
+For GPU VASP on Phoenix, prefer `g3`/H100 after live checks and a short
+validation job, but throttle job count because the node has limited CPU cores
+and concurrent GPU jobs can cause CPU contention. See `phoenix-submit.md`.

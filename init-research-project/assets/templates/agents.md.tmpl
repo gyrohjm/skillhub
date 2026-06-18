@@ -1,0 +1,16 @@
+# AGENTS.md
+
+## Source of Truth
+
+Read `PROJECT_CONTEXT.md` and the relevant files under `docs/` before planning or changing scientific work.
+
+## Operating Rules
+
+- Preserve `raw_data`; never edit source data in place.
+- Put reproducible transformations in `code/`.
+- Do not copy an artifact into `formal_data` without explicit user approval and a manifest entry.
+- Keep directory and generated file names in English `lowercase_snake_case`.
+- Distinguish evidence, assumptions, hypotheses, and conclusions.
+- Do not silently change scientific parameters, exclusions, controls, or validation criteria.
+- Record consequential scientific decisions in `docs/decisions.md`.
+- Update `PROJECT_CONTEXT.md` when scope or acceptance criteria change.
