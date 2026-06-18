@@ -12,30 +12,38 @@ description: Create, revise, and verify formal academic PowerPoint decks in a cl
 3. Read `references/layout-archetypes.md` before placing ordinary content-slide objects. Pick one archetype per content slide unless the user explicitly asks for a custom layout.
 4. Read `references/workflow.md` for the common generation sequence.
 5. Read `references/content-writing.md` before writing slide text.
-6. Default to Chinese deck text unless the user explicitly requests English or another target language.
-7. When using figures, panels, tables, formulas, or diagrams from PDFs, render the relevant PDF page to an image and inspect that page screenshot before selecting a crop or placeholder.
-8. Create one markdown planning document that contains both the outline and the expanded slide-level content plan. Use `references/md-plan-template.md`.
-9. For every ordinary content slide, include a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content` before writing generator code.
-10. Prefer figures, paper crops, plots, diagrams, and compact tables over dense prose. Track every planned visual object to an actual PPT object, visible placeholder, or explicit missing-state note.
-11. Generate the PPT with editable `pptxgenjs` objects and MathJax-rendered formula images.
-12. Include a cover slide, an outline/storyline slide, content slides, and a final conclusion slide unless explicitly exempted.
-13. Do not put a bottom conclusion box on the outline slide.
-14. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source; every slide-level image, cropped paper figure, generated plot, figure placeholder, or manually inserted visual must include its source information in the notes.
-15. Use the starter generator's helper components for cover, outline, conclusion, cards, tables, citations, formulas, speaker notes, and code. Avoid unconstrained free-coordinate slide construction.
-16. Keep ordinary content slides to at most 3 sentences/bullets; allow 4 only for justified data-heavy method/result pages.
-17. Keep bottom conclusion boxes above the citation/footer region; do not use the conclusion as a paragraph container.
-18. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`; also write the same source and failure reason in the slide speaker notes.
-19. Run the AI review iteration loop before delivery. Content and layout must both pass.
+6. Read `references/opendataloader-policy.md` before using any figure, table, formula, caption, or diagram from a PDF.
+7. Default to Chinese deck text unless the user explicitly requests English or another target language.
+8. When using figures, panels, tables, formulas, or diagrams from PDFs, first check whether OpenDataLoader is available and prefer it for PDF layout parsing. If it is unavailable, ask the user whether to install/configure it before falling back to lower-level parsing tools.
+9. Render the relevant PDF page to an image and inspect that page screenshot before selecting a crop or placeholder.
+10. Create one markdown planning document that contains both the outline and the expanded slide-level content plan. Use `references/md-plan-template.md`.
+11. For every ordinary content slide, include a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content` before writing generator code.
+12. Prefer figures, paper crops, plots, diagrams, and compact tables over dense prose. Track every planned visual object to an actual PPT object, visible placeholder, or explicit missing-state note.
+13. Generate the PPT with editable `pptxgenjs` objects and MathJax-rendered formula images.
+14. Include a cover slide, an outline/storyline slide, content slides, and a final conclusion slide unless explicitly exempted.
+15. Do not put a bottom conclusion box on the outline slide.
+16. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source; every slide-level image, cropped paper figure, generated plot, figure placeholder, or manually inserted visual must include its source information in the notes.
+17. Use the starter generator's helper components for cover, outline, conclusion, cards, tables, citations, formulas, speaker notes, and code. Avoid unconstrained free-coordinate slide construction.
+18. Keep ordinary content slides to at most 3 sentences/bullets; allow 4 only for justified data-heavy method/result pages.
+19. Keep bottom conclusion boxes above the citation/footer region; do not use the conclusion as a paragraph container.
+20. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`; also write the same source and failure reason in the slide speaker notes.
+21. Run the AI review iteration loop before delivery. Content and layout must both pass.
 
 ## Language Rule
 
 Default deck language is Chinese. This applies to slide titles, visible body text, bottom conclusion sentences, table labels, placeholder text, citation explanations, and speaker notes. Use English only when the user explicitly requests English, when the source text must remain in English for technical accuracy, or when preserving proper nouns, formulas, code, variable names, journal names, and citation metadata.
 
+## OpenDataLoader-first PDF Rule
+
+For PDF-derived figures, tables, formulas, captions, or diagrams, the agent must prefer OpenDataLoader as the PDF layout parsing layer. Before choosing crop coordinates or placeholders, check whether OpenDataLoader is available in the environment. If available, use it to identify candidate pages, figures/tables, captions, and layout regions. If unavailable, ask the user whether to install or configure OpenDataLoader before using fallback tools such as `pdfplumber`, PyMuPDF, manual page screenshots, or placeholders.
+
+Do not silently downgrade to a fallback parser. If the user declines installation or installation is impossible, record `OpenDataLoader unavailable` and the approved fallback path in the markdown plan and speaker notes.
+
 ## PDF Page Screenshot Rule
 
 For every PDF-derived visual object, the agent must render the candidate PDF page to an image and inspect that screenshot as visual input before deciding the crop boundary or placeholder content. Do not select PDF crop coordinates from text extraction alone.
 
-The markdown plan and slide speaker notes should record the PDF file, page number, figure or panel label, rendered page screenshot path when available, crop box when available, final crop asset path or placeholder status, and any failure reason.
+The markdown plan and slide speaker notes should record the PDF file, page number, figure or panel label, OpenDataLoader parse artifact or availability status, rendered page screenshot path when available, crop box when available, final crop asset path or placeholder status, and any failure reason.
 
 ## Image Source Notes Rule
 
@@ -46,6 +54,7 @@ For each visual object, record:
 - object id or visible label,
 - source file / paper / URL / notebook / generated asset path,
 - paper page and figure/panel number when available,
+- OpenDataLoader parse artifact path or `OpenDataLoader unavailable` when the source is a PDF,
 - rendered PDF page screenshot path when the source is a PDF and a screenshot was available,
 - crop asset path or generated output path when available,
 - PPT status: `inserted`, `generated`, `placeholder`, `pending crop`, or `omitted`,
@@ -57,6 +66,7 @@ Do not treat a visible citation footer as a replacement for speaker-note source 
 
 - `references/style-guide.md`: visual rules, fonts, colors, citation footer, figure layout.
 - `references/layout-archetypes.md`: fixed non-overlapping content-slide templates and mandatory layout box tables.
+- `references/opendataloader-policy.md`: OpenDataLoader-first PDF parsing, availability check, install-confirmation, and fallback rules.
 - `references/workflow.md`: common plan -> generate -> verify sequence.
 - `references/content-writing.md`: outline-first writing, anti-AI phrasing, slide content limits, cover rules, bottom conclusion sentence.
 - `references/toolchain.md`: dependency installation and command usage.
@@ -72,10 +82,12 @@ Do not treat a visible citation footer as a replacement for speaker-note source 
 ## Hard Failure Examples
 
 - A markdown plan promises a paper figure, spectrum, structure model, or comparison chart but the PPT contains only text.
+- A PDF-derived visual is cropped, inserted, or represented by a placeholder without first checking OpenDataLoader availability, unless the plan records that the user approved a fallback path.
 - A PDF-derived visual is cropped, inserted, or represented by a placeholder without first rendering and visually inspecting the candidate PDF page screenshot, unless the plan records a toolchain blocker.
+- OpenDataLoader is unavailable, but the agent silently falls back to another parser without asking the user whether to install/configure it.
 - A required paper figure is unavailable but the PPT has no visible placeholder frame with target source and figure/page.
 - A slide uses an inserted image, cropped paper figure, generated plot, or placeholder but the speaker notes do not include its source and status.
-- A figure cannot be cropped and is represented by a placeholder, but the notes omit the original source, page/figure number, rendered page screenshot path when available, or failure reason.
+- A figure cannot be cropped and is represented by a placeholder, but the notes omit the original source, page/figure number, OpenDataLoader status, rendered page screenshot path when available, or failure reason.
 - The deck defaults to English even though the user did not explicitly request English.
 - A QA checklist says pass without citing exported preview slides or actual PPT objects.
 - Cover metadata, outline items, right-side cards, tables, or bottom conclusion text are clipped in preview.
@@ -100,6 +112,7 @@ In the final response, report:
 - whether PowerPoint opened/exported successfully,
 - whether formulas were inserted as MathJax-rendered image assets,
 - whether all inserted/placeholder image sources were recorded in speaker notes,
+- whether PDF-derived visuals were first checked with OpenDataLoader or had user-approved fallback/blocker notes,
 - whether PDF-derived visuals were checked against rendered page screenshots or had documented blockers,
 - any unresolved caveat such as formula fallback to raw LaTeX or manual figure crop still pending.
 
