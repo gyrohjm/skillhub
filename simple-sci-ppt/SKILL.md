@@ -13,21 +13,22 @@ description: Create, revise, and verify formal academic PowerPoint decks in a cl
 4. Read `references/workflow.md` for the common generation sequence.
 5. Read `references/content-writing.md` before writing slide text.
 6. Read `references/opendataloader-policy.md` before using any figure, table, formula, caption, or diagram from a PDF.
-7. Default to Chinese deck text unless the user explicitly requests English or another target language.
-8. When using figures, panels, tables, formulas, or diagrams from PDFs, first check whether OpenDataLoader is available and prefer it for PDF layout parsing. If it is unavailable, ask the user whether to install/configure it before falling back to lower-level parsing tools.
-9. Render the relevant PDF page to an image and inspect that page screenshot before selecting a crop or placeholder.
-10. Create one markdown planning document that contains both the outline and the expanded slide-level content plan. Use `references/md-plan-template.md`.
-11. For every ordinary content slide, include a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content` before writing generator code.
-12. Prefer figures, paper crops, plots, diagrams, and compact tables over dense prose. Track every planned visual object to an actual PPT object, visible placeholder, or explicit missing-state note.
-13. Generate the PPT with editable `pptxgenjs` objects and MathJax-rendered formula images.
-14. Include a cover slide, an outline/storyline slide, content slides, and a final conclusion slide unless explicitly exempted.
-15. Do not put a bottom conclusion box on the outline slide.
-16. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source; every slide-level image, cropped paper figure, generated plot, figure placeholder, or manually inserted visual must include its source information in the notes.
-17. Use the starter generator's helper components for cover, outline, conclusion, cards, tables, citations, formulas, speaker notes, and code. Avoid unconstrained free-coordinate slide construction.
-18. Keep ordinary content slides to at most 3 sentences/bullets; allow 4 only for justified data-heavy method/result pages.
-19. Keep bottom conclusion boxes above the citation/footer region; do not use the conclusion as a paragraph container.
-20. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`; also write the same source and failure reason in the slide speaker notes.
-21. Run the AI review iteration loop before delivery. Content and layout must both pass.
+7. For reference-folder or literature-report decks with PDFs, also read `references/reference-folder-opendataloader-addendum.md`.
+8. Default to Chinese deck text unless the user explicitly requests English or another target language.
+9. When using figures, panels, tables, formulas, or diagrams from PDFs, first check whether OpenDataLoader is available and prefer it for PDF layout parsing. If it is unavailable, ask the user whether to install/configure it before falling back to lower-level parsing tools.
+10. Render the relevant PDF page to an image and inspect that page screenshot before selecting a crop or placeholder.
+11. Create one markdown planning document that contains both the outline and the expanded slide-level content plan. Use `references/md-plan-template.md`.
+12. For every ordinary content slide, include a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content` before writing generator code.
+13. Prefer figures, paper crops, plots, diagrams, and compact tables over dense prose. Track every planned visual object to an actual PPT object, visible placeholder, or explicit missing-state note.
+14. Generate the PPT with editable `pptxgenjs` objects and MathJax-rendered formula images.
+15. Include a cover slide, an outline/storyline slide, content slides, and a final conclusion slide unless explicitly exempted.
+16. Do not put a bottom conclusion box on the outline slide.
+17. Add speaker notes to every slide. Notes should explain how to present the slide; formula notes must include the original LaTeX source; every slide-level image, cropped paper figure, generated plot, figure placeholder, or manually inserted visual must include its source information in the notes.
+18. Use the starter generator's helper components for cover, outline, conclusion, cards, tables, citations, formulas, speaker notes, and code. Avoid unconstrained free-coordinate slide construction.
+19. Keep ordinary content slides to at most 3 sentences/bullets; allow 4 only for justified data-heavy method/result pages.
+20. Keep bottom conclusion boxes above the citation/footer region; do not use the conclusion as a paragraph container.
+21. If a required paper figure cannot be cropped or extracted, insert a placeholder frame naming the paper, figure/page, expected content, and `待裁剪 / 需人工插入`; also write the same source and failure reason in the slide speaker notes.
+22. Run the AI review iteration loop before delivery. Content and layout must both pass.
 
 ## Language Rule
 
@@ -67,6 +68,7 @@ Do not treat a visible citation footer as a replacement for speaker-note source 
 - `references/style-guide.md`: visual rules, fonts, colors, citation footer, figure layout.
 - `references/layout-archetypes.md`: fixed non-overlapping content-slide templates and mandatory layout box tables.
 - `references/opendataloader-policy.md`: OpenDataLoader-first PDF parsing, availability check, install-confirmation, and fallback rules.
+- `references/reference-folder-opendataloader-addendum.md`: extra OpenDataLoader requirements for PDF-heavy reference-folder decks.
 - `references/workflow.md`: common plan -> generate -> verify sequence.
 - `references/content-writing.md`: outline-first writing, anti-AI phrasing, slide content limits, cover rules, bottom conclusion sentence.
 - `references/toolchain.md`: dependency installation and command usage.
