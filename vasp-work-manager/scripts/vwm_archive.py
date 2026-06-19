@@ -63,6 +63,7 @@ SKIP_DIRS = {".git", "__pycache__", ".pytest_cache", ".mypy_cache"}
 INTERNAL_ARCHIVE_NAMES = {"manifest.json", "SHA256SUMS"}
 
 FLOAT = r"[+-]?(?:(?:\d+\.\d*)|(?:\.\d+)|(?:\d+))(?:[EeDd][+-]?\d+)?"
+LOWER_SNAKE_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
 
 
 def utc_now() -> str:
@@ -76,6 +77,33 @@ def stamp() -> str:
 def safe_slug(value: str) -> str:
     clean = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
     return clean.strip("-") or "unnamed"
+
+
+def require_lower_snake(name: str, value: str) -> str:
+    if not LOWER_SNAKE_RE.fullmatch(value):
+        raise ValueError(f"{name} must use short English lowercase_snake_case; got {value!r}")
+    return value
+
+
+def archive_destination(
+    archive_root: Path,
+    project: str,
+    task: str,
+    stamp_value: str,
+    system_slug: str | None = None,
+    case_slug: str | None = None,
+) -> Path:
+    if bool(system_slug) != bool(case_slug):
+        raise ValueError("--system-slug and --case-slug must be provided together")
+    if system_slug and case_slug:
+        require_lower_snake("project", project)
+        return (
+            archive_root
+            / require_lower_snake("system_slug", system_slug)
+            / require_lower_snake("case_slug", case_slug)
+            / stamp_value
+        )
+    return archive_root / safe_slug(project) / safe_slug(task) / stamp_value
 
 
 def file_sha256(path: Path) -> str:
@@ -213,6 +241,8 @@ def write_archive_files(
     dest: Path,
     project: str,
     task: str,
+    system_slug: str | None,
+    case_slug: str | None,
     cluster: str | None,
     task_state: str,
     review_status: str,
@@ -242,6 +272,8 @@ def write_archive_files(
         "schema": "vasp-work-manager.archive.v1",
         "project": project,
         "task": task,
+        "system_slug": system_slug,
+        "case_slug": case_slug,
         "cluster": cluster,
         "task_state": task_state,
         "review_status": review_status,
@@ -276,6 +308,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--source", required=True, help="VASP calculation directory.")
     parser.add_argument("--project", required=True)
     parser.add_argument("--task", required=True)
+    parser.add_argument("--system-slug", help="Managed layout system slug (lowercase_snake_case).")
+    parser.add_argument("--case-slug", help="Managed layout case slug (lowercase_snake_case).")
     parser.add_argument("--archive-root", required=True)
     parser.add_argument("--ledger", help="SQLite ledger path. Default: <archive-root>/vwm.sqlite")
     parser.add_argument("--cluster")
@@ -297,8 +331,20 @@ def main(argv: list[str] | None = None) -> int:
     if not source.is_dir():
         raise FileNotFoundError(f"Source directory not found: {source}")
     archive_root = Path(args.archive_root).expanduser().resolve()
-    ledger = Path(args.ledger).expanduser().resolve() if args.ledger else archive_root / "vwm.sqlite"
-    dest = archive_root / safe_slug(args.project) / safe_slug(args.task) / stamp()
+    managed_layout = bool(args.system_slug or args.case_slug)
+    ledger = (
+        Path(args.ledger).expanduser().resolve()
+        if args.ledger
+        else (archive_root.parent / "ledger" / "vwm.sqlite" if managed_layout else archive_root / "vwm.sqlite")
+    )
+    dest = archive_destination(
+        archive_root,
+        args.project,
+        args.task,
+        stamp(),
+        system_slug=args.system_slug,
+        case_slug=args.case_slug,
+    )
 
     selected = collect(source, args.include_large, archive_root=archive_root)
     print(f"Selected {len(selected)} file(s) from {source}")
@@ -315,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         dest=dest,
         project=args.project,
         task=args.task,
+        system_slug=args.system_slug,
+        case_slug=args.case_slug,
         cluster=args.cluster,
         task_state=args.state,
         review_status=args.review_status,

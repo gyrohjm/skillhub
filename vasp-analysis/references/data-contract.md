@@ -3,6 +3,11 @@
 Write plot-ready numeric data as `.dat` files. Use whitespace-separated columns
 and comment metadata. JSON is for manifests and configuration only.
 
+On clusters, write these files under
+`<case_root>/analysis/plot_data/`. Do not create a separate `raw_data/` tree or
+copy unchanged VASP source outputs into the analysis directory; reference the
+original source paths in headers.
+
 Required header:
 
 ```text
@@ -73,4 +78,4 @@ pcohp_selected_bonds.dat:
 ```
 
 Run `scripts/vaplot_dat.py validate <file.dat>` before handing data to
-`vasp-work-manager` for archiving.
+`vasp-work-manager` for task registration, archive records, and verification.

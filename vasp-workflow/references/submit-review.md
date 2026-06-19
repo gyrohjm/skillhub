@@ -15,6 +15,9 @@ K-path, or resource envelope before the job enters Slurm.
   structures, state the ordering convention: generally sort atoms by descending
   `z`, then ascending `x`, then ascending `y`, unless the user requests another
   order for symmetry, constraints, or site labels.
+- For relax submissions, show `POSCAR-ini` source and SHA256. It must preserve
+  the initial approved geometry and must not be overwritten by continuation
+  attempts.
 - `INCAR`: source template or path, SHA256, the complete effective INCAR that
   will be submitted, and a separate list of inherited, appended, or overridden
   parameters for follow-up calculations. Do not show only `ENCUT` or a brief
@@ -31,6 +34,9 @@ K-path, or resource envelope before the job enters Slurm.
 - Resources: partition, QoS, account, nodelist, GRES/GPU request, node count,
   ntasks, ntasks-per-node, cpus-per-task, wall time, VASP command, module
   assumptions.
+- `job.sh`: source template path, SHA256, and confirmation that any edits to the
+  shared script structure came from `assets/templates/jobvasp.sh` or another
+  explicitly reviewed template.
 - Task count: one job count, or finite-displacement worker count plus total
   displacement count.
 
@@ -46,16 +52,20 @@ after the review. Regenerate the review and get user approval again.
 For FD phonon worker queues, the user approves the whole taskset envelope once:
 all workers may claim displacements only inside that approved envelope.
 
-In CLI automation, require either an explicit `--approved` flag or an approval
-file whose hash matches the current `submission_review.dat`. Do not treat the
+In CLI automation, require either an explicit `--approved` flag, a stage
+approval file whose hash matches the current `submission_review.dat`, or an
+explicit `preapproved_by_workflow: true` stage entry from the initial reviewed
+workflow envelope. For workflow preapproval, current inputs/resources must match
+the hashes recorded in `task_spec.json` or `state.json`. Do not treat the
 existence of an old review as approval when the inputs or resources changed.
 
 For automatic workflow handoff, a workflow-level approval may authorize the
-intended dependency graph and resource envelopes, but it does not remove the
-per-stage review requirement. The cron/tick script must write or verify each
-stage review with actual derived hashes before submitting that stage. If a
-derived input, resource field, or dependency path is outside the approved
-workflow envelope, block and ask the user or Agent to review.
+intended dependency graph and resource envelopes, including SCF and downstream
+tasks after relax convergence. It does not remove the per-stage review file:
+the cron/tick script must write or verify each stage review with actual derived
+hashes before submitting that stage. If a derived input, resource field, or
+dependency path is outside the approved workflow envelope, block and ask the
+user or Agent to review.
 
 Standard prepared stages (`prepare relax|scf|band|dos`) write their review and
 approval directly inside the stage directory. FD worker queues write them inside

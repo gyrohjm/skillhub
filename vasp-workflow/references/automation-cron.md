@@ -26,9 +26,10 @@ and submits approved stages.
 - General relax automation does not use a convergence ladder by default. It
   must keep relax `EDIFF=1E-6` and `EDIFFG=-0.01` unless the review envelope
   explicitly approves a different value.
-- Each stage still needs `submission_review.dat` and
-  `submission_approval.json`; cron may only submit when the approval matches the
-  current stage files.
+- Each stage still needs `submission_review.dat`. Cron may submit only when
+  either the stage has a matching `submission_approval.json` or the stage is
+  marked `preapproved_by_workflow: true` because the initial reviewed workflow
+  envelope already fixed its scientific parameters and resources.
 - Derived inputs must stay inside the approved envelope. Example: SCF may use
   `relax/CONTCAR`; phonon FD may use the same approved relaxed structure. Declare
   such derivations with a stage's `inputs_from` (see "Input Staging Between
@@ -63,6 +64,7 @@ actual case, for example:
       "submit_command": "sbatch job.sh",
       "review_file": "submission_review.dat",
       "approval_file": "submission_approval.json",
+      "preapproved_by_workflow": false,
       "completion_files": ["CONTCAR", "OUTCAR"],
       "incar_defaults": {
         "EDIFF": "1E-6",
@@ -91,6 +93,7 @@ actual case, for example:
       "submit_command": "sbatch job.sh",
       "review_file": "submission_review.dat",
       "approval_file": "submission_approval.json",
+      "preapproved_by_workflow": false,
       "inputs_from": [{"stage": "relax", "file": "CONTCAR", "to": "POSCAR"}],
       "completion_files": ["OUTCAR", "CHGCAR"],
       "incar_defaults": {
@@ -115,6 +118,15 @@ actual case, for example:
   ]
 }
 ```
+
+Set `preapproved_by_workflow: true` only after the initial project computation
+plan has already listed that stage's full effective INCAR inheritance/overrides,
+KPOINTS policy, POTCAR labels, structure source, cluster profile, resource
+profile, and completion gate. The helper still requires the stage's
+`submission_review.dat`, and the current files/resources must match the hashes
+recorded in `task_spec.json` or `state.json`. Optional
+`workflow_preapproved_review_hash`, `workflow_preapproved_input_hashes`, and
+`workflow_preapproved_resource_hash` can pin the envelope more tightly.
 
 For FD phonons, add a taskset stage after preparing it with
 `prepare phonon-fd`:
@@ -158,7 +170,8 @@ stage directly with `python -m vwf parse --task-dir <stage path>`.
 Status meanings:
 
 - `planned`: waiting for dependencies.
-- `ready`: dependencies are done and approval exists; eligible for submit.
+- `ready`: dependencies are done; eligible for submit only when auto-submit
+  also finds a matching stage approval or workflow preapproval.
 - `submitted` or `running`: Slurm job id is known.
 - `done`: completion files exist and (if `require_convergence`) the run
   converged.
@@ -189,8 +202,14 @@ selected by the stage's `recovery_strategy`:
   Restrict the permitted actions per stage with
   `"recovery_actions": ["restart_from_contcar", "resubmit"]`; a chosen action
   outside the list is downgraded to `block`. Before each retry the prior
-  `OUTCAR/OSZICAR/vasp.out/vasp.err` are moved into
-  `recovery_attempts/attempt-N/` so the next run is judged on its own results.
+  `OUTCAR/OSZICAR/CONTCAR/vasp.out/vasp.err` are moved into
+  `recovery_attempts/attempt-N/` so the next run is judged on its own results
+  and the unconverged geometry remains available for debugging.
+
+For relax continuations, `CONTCAR -> POSCAR` may be repeated until the parser
+reports ionic convergence. Do not mark relax `done` or prepare SCF from
+`relax/CONTCAR` until convergence is confirmed. A final one-step continuation is
+supporting evidence, not the formal gate.
 
 - `"command"` (default when `recovery_command` is set): the tick runs your
   `recovery_command` verbatim in the stage directory and returns it to `ready`
@@ -199,8 +218,9 @@ selected by the stage's `recovery_strategy`:
   approved settings). Do not let it alter scientific inputs outside review.
 
 Either way, recovery respects `max_retries`; once reached the stage stays
-`blocked` for the human. Recovery never bypasses the per-stage approval gate —
-a recovered stage still needs its approval to be auto-submitted.
+`blocked` for the human. Recovery never bypasses the submit gate: a recovered
+stage still needs either a matching stage approval or valid workflow
+preapproval to be auto-submitted.
 
 ## Input Staging Between Stages
 
@@ -218,8 +238,9 @@ before the stage becomes `ready`:
 ```
 
 - `to` defaults to `file`; use it to rename (CONTCAR -> POSCAR).
-- `link: true` symlinks instead of copying — prefer it for large files such as
-  CHGCAR/WAVECAR so they are not duplicated.
+- `link: true` symlinks instead of copying. Use it for SCF `CHGCAR`/`WAVECAR`;
+  if the symlink cannot be created, automation blocks instead of falling back to
+  a copy.
 - `optional: true` skips a missing source silently; otherwise a missing required
   source blocks the stage (`required staged input missing: ...`).
 - Staging is idempotent (a destination already matching the source is left

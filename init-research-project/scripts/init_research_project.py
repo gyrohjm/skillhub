@@ -24,8 +24,10 @@ BASE_DIRECTORIES = [
     "docs/literature",
     "docs/literature/papers",
     "docs/literature/notes",
+    "docs/plans",
+    "docs/records",
+    "docs/records/task_logs",
     "docs/presentations",
-    "docs/task_logs",
     "docs/tutorials",
     "code",
     "code/src",
@@ -36,6 +38,7 @@ BASE_DIRECTORIES = [
     "raw_data",
     "raw_data/external",
     "raw_data/interim",
+    "raw_data/calculations",
     "formal_data",
     "formal_data/plot_data",
     "formal_data/figures",
@@ -47,7 +50,7 @@ BASE_DIRECTORIES = [
 MODE_DIRECTORIES = {
     "generic": [],
     "experimental": ["raw_data/experiments"],
-    "computational": ["raw_data/calculations"],
+    "computational": [],
     "hybrid": ["raw_data/experiments", "raw_data/calculations"],
 }
 
@@ -116,6 +119,22 @@ def load_spec(path: Path) -> dict[str, Any]:
     for index, item in enumerate(spec["objectives"], start=1):
         if not isinstance(item, dict) or not item.get("description") or not item.get("success_criteria"):
             raise ValueError(f"objectives[{index}] requires description and success_criteria")
+    for index, item in enumerate(spec.get("systems", []), start=1):
+        if isinstance(item, dict):
+            system_slug = str(item.get("system_slug") or "")
+            cases = item.get("case_slugs", [])
+        else:
+            system_slug = str(item)
+            cases = []
+        if not SLUG_RE.fullmatch(system_slug):
+            raise ValueError(f"systems[{index}].system_slug must use English lowercase_snake_case; got {system_slug!r}")
+        if not isinstance(cases, list):
+            raise ValueError(f"systems[{index}].case_slugs must be a list")
+        for case_index, case_slug in enumerate(cases, start=1):
+            if not SLUG_RE.fullmatch(str(case_slug)):
+                raise ValueError(
+                    f"systems[{index}].case_slugs[{case_index}] must use English lowercase_snake_case; got {case_slug!r}"
+                )
     return spec
 
 
@@ -127,7 +146,11 @@ def markdown_list(items: Any, empty: str = "- TBD / 待补充") -> str:
     lines = []
     for item in items:
         if isinstance(item, dict):
-            lines.append(f"- {json.dumps(item, ensure_ascii=False)}")
+            lines.append("- Structured item:")
+            lines.append("  ```json")
+            for line in json.dumps(item, ensure_ascii=False, indent=2).splitlines():
+                lines.append(f"  {line}")
+            lines.append("  ```")
         else:
             lines.append(f"- {item}")
     return "\n".join(lines)
@@ -269,26 +292,45 @@ def render_template(name: str, context: dict[str, str]) -> str:
 
 def build_files(spec: dict[str, Any]) -> list[PlannedFile]:
     context = build_context(spec)
+    agents_context = {**context, "AGENT_CONTEXT_FILENAME": "AGENTS.md"}
+    claude_context = {**context, "AGENT_CONTEXT_FILENAME": "CLAUDE.md"}
     files = [
         PlannedFile("README.md", render_template("readme.md.tmpl", context)),
         PlannedFile("PROJECT_CONTEXT.md", render_template("project_context.md.tmpl", context)),
-        PlannedFile("AGENTS.md", render_template("agents.md.tmpl", context)),
+        PlannedFile("AGENTS.md", render_template("agents.md.tmpl", agents_context)),
+        PlannedFile("CLAUDE.md", render_template("agents.md.tmpl", claude_context)),
         PlannedFile(".gitignore", render_template("gitignore.tmpl", context)),
         PlannedFile("docs/literature/reading_queue.md", render_template("reading_queue.md.tmpl", context)),
-        PlannedFile("docs/research_plan.md", render_template("research_plan.md.tmpl", context)),
-        PlannedFile("docs/milestones.md", render_template("milestones.md.tmpl", context)),
-        PlannedFile("docs/risk_register.md", render_template("risk_register.md.tmpl", context)),
-        PlannedFile("docs/decisions.md", render_template("decisions.md.tmpl", context)),
+        PlannedFile("docs/plans/research_plan.md", render_template("research_plan.md.tmpl", context)),
+        PlannedFile("docs/plans/milestones.md", render_template("milestones.md.tmpl", context)),
+        PlannedFile("docs/plans/risk_register.md", render_template("risk_register.md.tmpl", context)),
+        PlannedFile("docs/records/decisions.md", render_template("decisions.md.tmpl", context)),
         PlannedFile("formal_data/README.md", render_template("formal_data_readme.md.tmpl", context)),
         PlannedFile("formal_data/MANIFEST.csv", render_template("manifest.csv.tmpl", context)),
         PlannedFile("docs/project_spec.json", json.dumps(spec, ensure_ascii=False, indent=2) + "\n"),
     ]
     mode = spec["mode"]
     if mode in {"experimental", "hybrid"}:
-        files.append(PlannedFile("docs/experiment_plan.md", render_template("experiment_plan.md.tmpl", context)))
+        files.append(PlannedFile("docs/plans/experiment_plan.md", render_template("experiment_plan.md.tmpl", context)))
     if mode in {"computational", "hybrid"}:
-        files.append(PlannedFile("docs/computation_plan.md", render_template("computation_plan.md.tmpl", context)))
+        files.append(PlannedFile("docs/plans/computation_plan.md", render_template("computation_plan.md.tmpl", context)))
     return files
+
+
+def system_directories(spec: dict[str, Any]) -> list[str]:
+    directories: list[str] = []
+    for item in spec.get("systems", []):
+        if isinstance(item, dict):
+            system_slug = str(item["system_slug"])
+            case_slugs = [str(case_slug) for case_slug in item.get("case_slugs", [])]
+        else:
+            system_slug = str(item)
+            case_slugs = []
+        directories.append(f"raw_data/calculations/{system_slug}")
+        directories.append(f"formal_data/structures/{system_slug}")
+        for case_slug in case_slugs:
+            directories.append(f"raw_data/calculations/{system_slug}/{case_slug}")
+    return directories
 
 
 def find_nonconforming_directories(root: Path) -> list[Path]:
@@ -381,7 +423,7 @@ def main() -> int:
         if args.git_init and not args.apply:
             raise ValueError("--git-init is allowed only together with --apply")
 
-        directories = sorted(set(BASE_DIRECTORIES + MODE_DIRECTORIES[spec["mode"]]))
+        directories = sorted(set(BASE_DIRECTORIES + MODE_DIRECTORIES[spec["mode"]] + system_directories(spec)))
         files = build_files(spec)
         preview(root, directories, files)
         if args.dry_run:

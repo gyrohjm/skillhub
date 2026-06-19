@@ -5,21 +5,132 @@ depending on a crowded working directory.
 
 ## Layout
 
-Use this layout by default:
+New cluster projects must first create one short English project directory under
+`/home/<user>/projects/`. If the local project name is Chinese, translate it to
+a concise English `lowercase_snake_case` slug and confirm it with the user
+before creating cluster paths. Do not use Chinese characters or long descriptive
+phrases in cluster directory names.
+
+Use this cluster layout by default:
 
 ```text
-archive-root/
-  <project>/
-    <task>/
-      <timestamp>Z/
-        files copied from the run directory
-        result.json
-        manifest.json
-        SHA256SUMS
+/home/<user>/projects/<project_slug>/
+  calculations/
+    <system_slug>/
+      <case_slug>/
+  archive/
+    <system_slug>/
+      <case_slug>/
+        <timestamp>Z/
+          files copied from the run directory
+          result.json
+          manifest.json
+          SHA256SUMS
+  ledger/
+    vwm.sqlite
+  docs/
+    project_summary.md
 ```
+
+For user `jmhe`, this becomes:
+
+```text
+/home/jmhe/projects/<project_slug>/
+```
+
+Archive a finished case from the cluster calculation path:
+
+```text
+/home/<user>/projects/<project_slug>/calculations/<system_slug>/<case_slug>
+```
+
+Use the archive root:
+
+```text
+/home/<user>/projects/<project_slug>/archive
+```
+
+Use the ledger path:
+
+```text
+/home/<user>/projects/<project_slug>/ledger/vwm.sqlite
+```
+
+Older paths such as `/home/jmhe/project/<project_slug>/...` may be recorded as
+legacy source paths when they already exist, but new managed projects should use
+the `/home/<user>/projects/<project_slug>/` convention.
+
+## Cluster Workspace Policy
+
+- Do not create `raw_data/` or `formal_data/` inside the cluster project root.
+  Those directories belong to the local `init-research-project` data lifecycle.
+- Keep raw VASP inputs/outputs in their original case directory under
+  `calculations/<system_slug>/<case_slug>/`; do not duplicate them into another
+  cluster data tree.
+- Run post-processing and plotting in the same case root, using:
+
+  ```text
+  calculations/<system_slug>/<case_slug>/analysis/
+    plot_data/
+    figures/
+    reports/
+  ```
+
+- `vasp-analysis` writes validated `.dat`, figures, and case reports there.
+  `vasp-work-manager` records those paths in the ledger/archive manifest.
+- Maintain only a concise project-level summary at `docs/project_summary.md`.
+  Record system/case, task state, source path, analysis report/figure paths,
+  archive path, and key conclusions; do not copy numeric data into the summary.
+- When results are intentionally synchronized to the local research project,
+  the local copy may enter `raw_data/calculations/<system_slug>/<case_slug>/`
+  and later follow the local promotion lifecycle. This does not create a
+  `raw_data/` directory on the cluster.
+
+Use this minimum project-summary table:
+
+```markdown
+| task | state | source_case | analysis_files | archive | review | conclusion/notes |
+|---|---|---|---|---|---|---|
+| sic_bulk.relax_pbe | completed | calculations/sic_bulk/relax_pbe | analysis/plot_data/energy.dat; analysis/figures/relax.pdf | archive/sic_bulk/relax_pbe/... | accepted | Relaxed structure converged. |
+```
+
+Append or update one row per case. Keep detailed methods, numeric tables, and
+figures in the case directory; the summary document is an index, not a second
+data store.
+
+Generate or refresh it from the ledger with:
+
+```bash
+python scripts/vwm_report.py \
+  --ledger /home/<user>/projects/<project_slug>/ledger/vwm.sqlite \
+  --project <project_slug> \
+  --format markdown \
+  --output /home/<user>/projects/<project_slug>/docs/project_summary.md
+```
+
+When copying results back into a local `init-research-project` tree, keep raw
+inputs/outputs under `raw_data/calculations/<system_slug>/<case_slug>/`.
+Promote figures, tables, plot `.dat` files, and approved structures into
+`formal_data` only after validation and user approval.
 
 Each archive timestamp is immutable. If a task is archived again, create a new
 timestamped archive version instead of overwriting the old one.
+
+## Ledger And Records
+
+The manager owns task intake and durable records. Use the SQLite ledger as a
+lightweight index, not as a workflow engine:
+
+- register/import existing tasks with project, task, source path, cluster,
+  task type, and state,
+- record notes, review status, archive path, parse status, VASP status, and
+  event history,
+- record file checksums and categories after an archive version is created,
+- report what is preserved and where it lives.
+
+Do not use the ledger to decide new INCAR/KPOINTS/POTCAR values, submit jobs,
+or perform analysis. Those actions belong to `vasp-workflow` and
+`vasp-analysis`.
 
 ## Default Kept Files
 
@@ -27,6 +138,7 @@ Keep core inputs and outputs when present:
 
 ```text
 POSCAR
+POSCAR-ini
 INCAR
 KPOINTS
 POTCAR
@@ -36,6 +148,7 @@ run_vasp.sh
 OUTCAR
 OSZICAR
 CONTCAR
+recovery_attempts/
 vasp.out
 vasp.err
 task_manifest.json
@@ -85,6 +198,11 @@ Include them only when the user explicitly asks or when a restart/analysis
 requires them. Before including large files, state the expected archive size
 when possible.
 
+When downstream task directories contain symlinks to SCF `CHGCAR` or `WAVECAR`,
+record the link target in the manifest. Do not silently dereference those links
+and duplicate the large files unless the user explicitly asks for a
+self-contained archive that includes them.
+
 ## Manifest Requirements
 
 Every archive version must write:
@@ -101,7 +219,7 @@ Verify an archive before using it as the basis for cleanup, transfer, or
 publication:
 
 ```bash
-python scripts/vwm_verify.py --archive /path/to/archive/project/task/timestamp
+python scripts/vwm_verify.py --archive /path/to/archive/system_slug/case_slug/timestamp
 ```
 
 The verifier checks:
@@ -127,7 +245,7 @@ Do not maintain a separate restore script until restore becomes a frequent
 operation. Restore is intentionally ordinary file copying:
 
 ```bash
-ARCHIVE=/path/to/archive/project/task/timestamp
+ARCHIVE=/path/to/archive/system_slug/case_slug/timestamp
 DEST=/path/to/restored-run
 
 mkdir -p "$DEST"

@@ -10,9 +10,13 @@
 
 ## Project Structure / 项目结构
 
-- `docs/`: literature, presentations, plans, task logs, tutorials, and decisions.
+- `docs/literature/`: papers, source notes, and reading queue.
+- `docs/plans/`: research, computation, experiment, milestone, and risk plans.
+- `docs/records/`: decisions and task execution logs.
 - `code/`: reusable source code, scripts, notebooks, tests, and configuration.
+- `raw_data/calculations/<system_slug>/<case_slug>/`: immutable calculation inputs, outputs, pre-relax structures, and post-relax structures grouped by system and case.
 - `raw_data/`: immutable source data and explicitly marked intermediate data.
+- `formal_data/structures/<system_slug>/`: only user-approved reusable structures.
 - `formal_data/`: validated, user-approved, publication-ready artifacts with provenance.
 
 ## Data Rule / 数据规则
@@ -22,3 +26,11 @@ raw_data -> code processing -> validation -> user approval -> formal_data
 ```
 
 Read `PROJECT_CONTEXT.md` before changing research scope or scientific assumptions.
+For VASP projects, define the relax/SCF/band/DOS/phonon parameter envelope in
+`docs/plans/computation_plan.md` before production runs and follow
+`AGENTS.md`/`CLAUDE.md`: use `vasp-workflow` for running/orchestration,
+`vasp-work-manager` for records/archive/verification, and `vasp-analysis` for
+completed-output data processing, figures, reports, and recommendations.
+The `raw_data/formal_data` lifecycle belongs to this local project. On clusters,
+keep outputs and `analysis/` products inside each source case and maintain only
+a concise project-level `docs/project_summary.md` index.

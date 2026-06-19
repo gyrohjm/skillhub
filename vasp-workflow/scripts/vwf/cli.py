@@ -18,6 +18,8 @@ from typing import Any
 from .parse import format_summary, parse_task_dir
 
 
+SKILL_ROOT = Path(__file__).resolve().parents[2]
+JOBVASP_TEMPLATE = SKILL_ROOT / "assets" / "templates" / "jobvasp.sh"
 QUEUE_STATES = ("undo", "calculating", "done", "failed")
 STATE_NAME = "state.json"
 APPROVAL_NAME = "submission_approval.json"
@@ -32,12 +34,22 @@ JOB_ID_RE = re.compile(r"Submitted batch job\s+(\d+)")
 SAFE_RECOVERY_ACTIONS = ("restart_from_contcar", "restage_inputs", "resubmit")
 # Stale outputs moved aside before a retry so the next attempt is judged on its
 # own results (not a previous run's OUTCAR/OSZICAR).
-ATTEMPT_ARCHIVE_FILES = ("OUTCAR", "OSZICAR", "vasp.out", "vasp.err")
+ATTEMPT_ARCHIVE_FILES = ("OUTCAR", "OSZICAR", "CONTCAR", "vasp.out", "vasp.err")
 DEFAULT_POTCAR_FUNCTIONAL = "PBE"
 DEFAULT_RELAX_EDIFF = "1E-6"
 DEFAULT_RELAX_EDIFFG = "-0.01"
 DEFAULT_RELAX_NSW = 80
 DEFAULT_SCF_EDIFF = "1E-7"
+SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$")
+DEFAULT_CLUSTER_CASE_ROOT = Path("/home/jmhe/project")
+INCAR_PRESETS = ("standard", "magnetic-vdw-relax")
+MAGNETIC_VDW_MAGMOM = "0.05 -0.05 0.05 -0.05 0.05 -0.05 0.05 -0.05"
+PROFILE_POTCAR_ROOTS = {
+    "nmg": Path("/home/jmhe/app/pot"),
+    "phoenix": Path("/home/jmhe/app/pot_database"),
+    "phoenix-gpu-a100": Path("/home/jmhe/app/pot_database"),
+    "phoenix-gpu-g3": Path("/home/jmhe/app/pot_database"),
+}
 
 DEFAULT_FD_INCAR = """SYSTEM = finite displacement phonon force calculation
 PREC = Accurate
@@ -193,6 +205,54 @@ def atomic_write_json(path: Path, data: dict[str, Any]) -> None:
 
 def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_slug(name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not SLUG_RE.fullmatch(value):
+        raise ValueError(f"{name} must use English lowercase_snake_case; got {value!r}")
+    return value
+
+
+def resolve_case_root(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
+    project = validate_slug("project_slug", getattr(args, "project_slug", None))
+    system = validate_slug("system_slug", getattr(args, "system_slug", None))
+    case = validate_slug("case_slug", getattr(args, "case_slug", None))
+    cluster = getattr(args, "cluster", "generic")
+    explicit = getattr(args, "case_root", None)
+    if explicit is not None:
+        root = explicit.resolve()
+        source = "explicit --case-root"
+    else:
+        missing = [
+            name for name, value in (
+                ("--project-slug", project),
+                ("--system-slug", system),
+                ("--case-slug", case),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError("--case-root or all of --project-slug, --system-slug, and --case-slug is required")
+        root = DEFAULT_CLUSTER_CASE_ROOT / str(project) / "calculations" / str(system) / str(case)
+        source = "derived from project/system/case default cluster layout"
+    return root, {
+        "project_slug": project,
+        "system_slug": system,
+        "case_slug": case,
+        "cluster": cluster,
+        "case_root_source": source,
+        "case_root": str(root),
+    }
+
+
+def add_case_args(parser: argparse.ArgumentParser, *, require_case_root: bool = False) -> None:
+    parser.add_argument("--case-root", type=Path, required=require_case_root)
+    parser.add_argument("--cluster", choices=("nmg", "phoenix", "generic"), default="generic")
+    parser.add_argument("--project-slug")
+    parser.add_argument("--system-slug")
+    parser.add_argument("--case-slug")
 
 
 def save_state(taskset: Path, state: dict[str, Any]) -> None:
@@ -385,6 +445,105 @@ def read_potcar_summary(path: Path) -> str:
     return "; ".join(titles) if titles else "no TITEL/VRHFIN lines found"
 
 
+def poscar_elements(path: Path) -> list[str]:
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    if len(lines) < 7:
+        raise ValueError(f"POSCAR is too short to read element order: {path}")
+    symbols = lines[5].split()
+    counts = lines[6].split()
+    if not symbols or not all(re.fullmatch(r"[A-Z][A-Za-z0-9_]*", item) for item in symbols):
+        raise ValueError(
+            "POSCAR must include a VASP 5 element-symbol line so POTCAR can be resolved automatically"
+        )
+    if not counts or not all(item.isdigit() for item in counts):
+        raise ValueError(f"POSCAR element count line is invalid: {path}")
+    return symbols
+
+
+def parse_potcar_labels(items: list[str] | None) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for item in items or []:
+        if "=" not in item:
+            raise argparse.ArgumentTypeError("--potcar-label must use ELEMENT=LABEL")
+        element, label = item.split("=", 1)
+        element = element.strip()
+        label = label.strip()
+        if not element or not label:
+            raise argparse.ArgumentTypeError("--potcar-label must use non-empty ELEMENT=LABEL")
+        labels[element] = label
+    return labels
+
+
+def default_potcar_root(profile: str) -> Path | None:
+    return PROFILE_POTCAR_ROOTS.get(profile)
+
+
+def potcar_candidates(root: Path, label: str) -> list[Path]:
+    if not root.exists():
+        return []
+    candidates: set[Path] = set()
+    direct = root / label / "POTCAR"
+    if direct.is_file():
+        candidates.add(direct.resolve())
+    for path in root.rglob("POTCAR"):
+        if path.is_file() and path.parent.name == label:
+            candidates.add(path.resolve())
+    return sorted(candidates)
+
+
+def resolve_potcar(args: argparse.Namespace, poscar_src: Path, task_dir: Path) -> tuple[Path, dict[str, Any]]:
+    if args.potcar is not None:
+        potcar_src = args.potcar.resolve()
+        if not potcar_src.exists():
+            raise FileNotFoundError(f"POTCAR source does not exist: {potcar_src}")
+        copy_or_link(potcar_src, task_dir / "POTCAR")
+        return potcar_src, {
+            "mode": "explicit",
+            "source": str(potcar_src),
+            "root": "",
+            "components": [],
+        }
+
+    root = args.potcar_root.resolve() if args.potcar_root else default_potcar_root(args.profile)
+    if root is None:
+        raise ValueError("generic profile has no default POTCAR root; pass --potcar or --potcar-root")
+    labels = parse_potcar_labels(args.potcar_label)
+    components: list[dict[str, Any]] = []
+    problems: list[str] = []
+    for element in poscar_elements(poscar_src):
+        label = labels.get(element, element)
+        candidates = potcar_candidates(root, label)
+        if not candidates:
+            problems.append(f"{element}: no POTCAR found for label {label!r} under {root}")
+            continue
+        if len(candidates) > 1:
+            listed = ", ".join(str(path) for path in candidates[:12])
+            problems.append(f"{element}: multiple POTCAR candidates for label {label!r}: {listed}")
+            continue
+        path = candidates[0]
+        components.append({
+            "element": element,
+            "label": label,
+            "path": str(path),
+            "title": read_potcar_summary(path),
+            "sha256": sha256_file(path),
+        })
+    if problems:
+        raise ValueError("POTCAR auto-resolution failed; confirm --potcar or --potcar-label. " + " | ".join(problems))
+
+    task_dir.mkdir(parents=True, exist_ok=True)
+    with (task_dir / "POTCAR").open("wb") as out:
+        for component in components:
+            out.write(Path(component["path"]).read_bytes())
+            out.write(b"\n")
+    return task_dir / "POTCAR", {
+        "mode": "auto",
+        "source": str(task_dir / "POTCAR"),
+        "root": str(root),
+        "components": components,
+    }
+
+
 def infer_kpoints_review(path: Path, state: dict[str, Any], hashes: dict[str, str]) -> list[str]:
     source = state.get("input_sources", {}).get("KPOINTS", "unknown")
     lines = [f"KPOINTS.source = {source}"]
@@ -440,7 +599,7 @@ def standard_task_path(case_root: Path, kind: str) -> Path:
 
 
 def standard_hashes(task_dir: Path) -> dict[str, str]:
-    names = ("POSCAR", "INCAR", "KPOINTS", "POTCAR", "job.sh")
+    names = ("POSCAR", "POSCAR-ini", "INCAR", "KPOINTS", "POTCAR", "job.sh")
     return {name: sha256_file(task_dir / name) for name in names if (task_dir / name).exists()}
 
 
@@ -499,60 +658,139 @@ def incar_line(key: str, value: Any) -> str:
     return f"{key} = {value}"
 
 
+def render_incar_sections(sections: list[tuple[str, list[str]]]) -> str:
+    lines: list[str] = []
+    for title, entries in sections:
+        if not entries:
+            continue
+        if lines:
+            lines.append("")
+        lines.append(f"# --- {title} ---")
+        lines.extend(entries)
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def build_magnetic_vdw_relax_incar(args: argparse.Namespace) -> str:
+    if args.task_kind != "relax":
+        raise ValueError("--incar-preset magnetic-vdw-relax is only valid for relax tasks")
+    encut = args.encut if args.encut is not None else 520
+    nsw = args.nsw if args.nsw is not None else 100
+    isif = args.isif if args.isif is not None else 2
+    return render_incar_sections([
+        ("global", [
+            incar_line("SYSTEM", "magnetic vdW relax generated by vwf"),
+            incar_line("ENCUT", encut),
+            incar_line("PREC", "Accurate"),
+            incar_line("GGA", "PE"),
+            incar_line("IVDW", 12),
+            incar_line("LASPH", ".TRUE."),
+            incar_line("LREAL", ".FALSE."),
+            incar_line("ISYM", 0),
+        ]),
+        ("electronic", [
+            incar_line("ISPIN", 2),
+            incar_line("MAGMOM", args.magmom or MAGNETIC_VDW_MAGMOM),
+            incar_line("NCORE", args.ncore if args.ncore is not None else 14),
+            incar_line("LORBIT", args.lorbit),
+            incar_line("ADDGRID", ".TRUE."),
+            incar_line("ISTART", 0),
+            incar_line("ICHARG", 2),
+            incar_line("EDIFF", standard_ediff("relax", args)),
+            incar_line("ISMEAR", args.ismear),
+            incar_line("SIGMA", args.sigma),
+        ]),
+        ("ionic", [
+            incar_line("EDIFFG", args.ediffg),
+            incar_line("IBRION", args.ibrion),
+            incar_line("NSW", nsw),
+            incar_line("ISIF", isif),
+        ]),
+        ("output", [
+            incar_line("LWAVE", ".FALSE."),
+            incar_line("LCHARG", ".FALSE."),
+        ]),
+    ])
+
+
 def build_standard_incar(kind: str, args: argparse.Namespace) -> str:
+    if args.incar_preset == "magnetic-vdw-relax":
+        return build_magnetic_vdw_relax_incar(args)
     if args.encut is None:
         raise ValueError("--encut is required when using the built-in INCAR template")
     ediff = standard_ediff(kind, args)
-    common = [
+    nsw = args.nsw if args.nsw is not None else DEFAULT_RELAX_NSW
+    isif = args.isif if args.isif is not None else 3
+    global_entries = [
         incar_line("SYSTEM", f"{kind} generated by vwf"),
         incar_line("PREC", "Accurate"),
         incar_line("ENCUT", args.encut),
+        incar_line("LREAL", ".FALSE."),
+    ]
+    electronic_entries = [
         incar_line("EDIFF", ediff),
         incar_line("ISMEAR", args.ismear),
         incar_line("SIGMA", args.sigma),
-        incar_line("LREAL", ".FALSE."),
     ]
     if args.ncore:
-        common.append(incar_line("NCORE", args.ncore))
+        electronic_entries.append(incar_line("NCORE", args.ncore))
+    ionic_entries: list[str] = []
+    output_entries: list[str] = []
     if kind == "relax":
-        common += [
+        ionic_entries += [
             incar_line("EDIFFG", args.ediffg),
             incar_line("IBRION", args.ibrion),
-            incar_line("NSW", args.nsw),
-            incar_line("ISIF", args.isif),
+            incar_line("NSW", nsw),
+            incar_line("ISIF", isif),
+        ]
+        output_entries += [
             incar_line("LWAVE", ".FALSE."),
             incar_line("LCHARG", ".FALSE."),
         ]
     elif kind == "scf":
-        common += [
+        ionic_entries += [
             incar_line("IBRION", -1),
             incar_line("NSW", 0),
             incar_line("ISIF", 2),
+        ]
+        output_entries += [
             incar_line("LWAVE", ".TRUE."),
             incar_line("LCHARG", ".TRUE."),
         ]
     elif kind == "band":
-        common += [
-            incar_line("IBRION", -1),
-            incar_line("NSW", 0),
+        electronic_entries += [
             incar_line("ICHARG", 11),
-            incar_line("LWAVE", ".FALSE."),
-            incar_line("LCHARG", ".FALSE."),
             incar_line("LORBIT", args.lorbit),
         ]
-    elif kind == "dos":
-        common += [
+        ionic_entries += [
             incar_line("IBRION", -1),
             incar_line("NSW", 0),
-            incar_line("ICHARG", 11),
+        ]
+        output_entries += [
             incar_line("LWAVE", ".FALSE."),
             incar_line("LCHARG", ".FALSE."),
+        ]
+    elif kind == "dos":
+        electronic_entries += [
+            incar_line("ICHARG", 11),
             incar_line("LORBIT", args.lorbit),
             incar_line("NEDOS", args.nedos),
         ]
+        ionic_entries += [
+            incar_line("IBRION", -1),
+            incar_line("NSW", 0),
+        ]
+        output_entries += [
+            incar_line("LWAVE", ".FALSE."),
+            incar_line("LCHARG", ".FALSE."),
+        ]
     else:
         raise ValueError(kind)
-    return "\n".join(common) + "\n"
+    return render_incar_sections([
+        ("global", global_entries),
+        ("electronic", electronic_entries),
+        ("ionic", ionic_entries),
+        ("output", output_entries),
+    ])
 
 
 def standard_ediff(kind: str, args: argparse.Namespace) -> str:
@@ -566,6 +804,63 @@ def standard_ediff(kind: str, args: argparse.Namespace) -> str:
 def incar_default_metadata(kind: str, args: argparse.Namespace, used_builtin_template: bool) -> dict[str, Any]:
     if not used_builtin_template:
         return {"source": "explicit template", "built_in_defaults": {}, "defaulted": [], "overridden": []}
+    if args.incar_preset == "magnetic-vdw-relax":
+        if kind != "relax":
+            return {"source": "built-in magnetic-vdw-relax preset", "built_in_defaults": {}, "defaulted": [], "overridden": []}
+        defaults = {
+            "ENCUT": 520,
+            "PREC": "Accurate",
+            "ISPIN": 2,
+            "MAGMOM": MAGNETIC_VDW_MAGMOM,
+            "NCORE": 14,
+            "GGA": "PE",
+            "IVDW": 12,
+            "LASPH": ".TRUE.",
+            "LREAL": ".FALSE.",
+            "ISYM": 0,
+            "LORBIT": 11,
+            "ADDGRID": ".TRUE.",
+            "ISTART": 0,
+            "ICHARG": 2,
+            "EDIFF": DEFAULT_RELAX_EDIFF,
+            "EDIFFG": DEFAULT_RELAX_EDIFFG,
+            "IBRION": 2,
+            "NSW": 100,
+            "ISIF": 2,
+            "ISMEAR": 0,
+            "SIGMA": "0.05",
+            "LWAVE": ".FALSE.",
+            "LCHARG": ".FALSE.",
+        }
+        effective = defaults.copy()
+        effective.update({
+            "ENCUT": int(args.encut) if args.encut is not None else 520,
+            "MAGMOM": args.magmom or MAGNETIC_VDW_MAGMOM,
+            "NCORE": int(args.ncore) if args.ncore is not None else 14,
+            "EDIFF": standard_ediff(kind, args),
+            "EDIFFG": str(args.ediffg),
+            "IBRION": int(args.ibrion),
+            "NSW": int(args.nsw) if args.nsw is not None else 100,
+            "ISIF": int(args.isif) if args.isif is not None else 2,
+            "ISMEAR": int(args.ismear),
+            "SIGMA": str(args.sigma),
+            "LORBIT": int(args.lorbit),
+        })
+        defaulted = [key for key, value in defaults.items() if effective.get(key) == value]
+        overridden = [
+            {"key": key, "default": defaults[key], "effective": effective[key]}
+            for key in defaults
+            if effective.get(key) != defaults[key]
+        ]
+        return {
+            "source": "built-in magnetic-vdw-relax preset grouped by global/electronic/ionic/output",
+            "built_in_defaults": defaults,
+            "defaulted": defaulted,
+            "overridden": overridden,
+            "ediff_policy": "magnetic-vdw-relax uses EDIFF=1E-6 by default; changes require review envelope approval",
+            "relax_ediffg_policy": "magnetic-vdw-relax uses EDIFFG=-0.01 by default; changes require review envelope approval",
+            "magmom_review": "MAGMOM count and order must match POSCAR element/site order before submit",
+        }
     if kind == "relax":
         defaults = {
             "EDIFF": DEFAULT_RELAX_EDIFF,
@@ -581,9 +876,9 @@ def incar_default_metadata(kind: str, args: argparse.Namespace, used_builtin_tem
         effective = {
             "EDIFF": standard_ediff(kind, args),
             "EDIFFG": str(args.ediffg),
-            "NSW": int(args.nsw),
+            "NSW": int(args.nsw) if args.nsw is not None else DEFAULT_RELAX_NSW,
             "IBRION": int(args.ibrion),
-            "ISIF": int(args.isif),
+            "ISIF": int(args.isif) if args.isif is not None else 3,
             "ISMEAR": int(args.ismear),
             "SIGMA": str(args.sigma),
             "PREC": "Accurate",
@@ -639,39 +934,35 @@ def incar_default_metadata(kind: str, args: argparse.Namespace, used_builtin_tem
 
 
 def build_stage_slurm(job_name: str, resources: dict[str, Any]) -> str:
-    lines = [
-        "#!/bin/bash",
-        f"#SBATCH -J {job_name}",
-        f"#SBATCH -N {resources['nodes']}",
-        f"#SBATCH -n {resources['ntasks']}",
-        f"#SBATCH --ntasks-per-node={resources['ntasks_per_node']}",
-        f"#SBATCH --cpus-per-task={resources['cpus_per_task']}",
-        "#SBATCH -o slurm-%j.out",
-        "#SBATCH -e slurm-%j.err",
-    ]
-    if resources.get("time"):
-        lines.insert(6, f"#SBATCH -t {resources['time']}")
-    if resources.get("partition"):
-        lines.append(f"#SBATCH -p {resources['partition']}")
-    if resources.get("qos"):
-        lines.append(f"#SBATCH -q {resources['qos']}")
-    if resources.get("account"):
-        lines.append(f"#SBATCH -A {resources['account']}")
-    if resources.get("nodelist"):
-        lines.append(f"#SBATCH -w {resources['nodelist']}")
-    if resources.get("gres"):
-        lines.append(f"#SBATCH --gres={resources['gres']}")
-    lines.extend([
-        "",
-        "set -euo pipefail",
-        "cd \"${SLURM_SUBMIT_DIR:-$(dirname \"$0\")}\"",
-        f"{resources['vasp_cmd']} > vasp.out 2> vasp.err",
-        "",
-    ])
-    return "\n".join(lines)
+    template = JOBVASP_TEMPLATE.read_text(encoding="utf-8")
+
+    def directive(flag: str, value: Any) -> str:
+        return f"#SBATCH {flag}{value}\n" if value not in (None, "") else ""
+
+    replacements = {
+        "JOB_NAME": job_name,
+        "NODES": str(resources["nodes"]),
+        "NTASKS": str(resources["ntasks"]),
+        "NTASKS_PER_NODE": str(resources["ntasks_per_node"]),
+        "CPUS_PER_TASK": str(resources["cpus_per_task"]),
+        "SBATCH_TIME": directive("-t ", resources.get("time")),
+        "SBATCH_PARTITION": directive("-p ", resources.get("partition")),
+        "SBATCH_QOS": directive("-q ", resources.get("qos")),
+        "SBATCH_ACCOUNT": directive("-A ", resources.get("account")),
+        "SBATCH_NODELIST": directive("-w ", resources.get("nodelist")),
+        "SBATCH_GRES": directive("--gres=", resources.get("gres")),
+        "VASP_CMD": str(resources["vasp_cmd"]),
+    }
+    text = template
+    for key, value in replacements.items():
+        text = text.replace("{{" + key + "}}", value)
+    unresolved = sorted(set(re.findall(r"\{\{([A-Z0-9_]+)\}\}", text)))
+    if unresolved:
+        raise ValueError(f"unresolved jobvasp.sh template placeholders: {unresolved}")
+    return text.rstrip() + "\n"
 
 
-def copy_or_link(src: Path, dst: Path, use_link: bool = False) -> None:
+def copy_or_link(src: Path, dst: Path, use_link: bool = False, strict_link: bool = False) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
     if dst.exists() or dst.is_symlink():
         dst.unlink()
@@ -679,7 +970,9 @@ def copy_or_link(src: Path, dst: Path, use_link: bool = False) -> None:
         try:
             dst.symlink_to(os.path.relpath(src, dst.parent))
             return
-        except OSError:
+        except OSError as exc:
+            if strict_link:
+                raise RuntimeError(f"failed to symlink {src} -> {dst}: {exc}") from exc
             pass
     shutil.copy2(src, dst)
 
@@ -703,7 +996,7 @@ def move_marker(src: Path, dst: Path) -> None:
 
 
 def init_case(args: argparse.Namespace) -> int:
-    root = args.case_root.resolve()
+    root, case_meta = resolve_case_root(args)
     dirs = [
         "structure",
         "test/encut",
@@ -743,6 +1036,7 @@ def init_case(args: argparse.Namespace) -> int:
         atomic_write_json(workflow, {
             "schema_version": 1,
             "case_root": str(root),
+            **case_meta,
             "workflow_order": [
                 "structure",
                 "test",
@@ -760,19 +1054,20 @@ def init_case(args: argparse.Namespace) -> int:
 
 def prepare_standard(args: argparse.Namespace) -> int:
     kind = args.task_kind
-    case_root = args.case_root.resolve()
+    case_root, case_meta = resolve_case_root(args)
     task_dir = standard_task_path(case_root, kind)
     if task_dir.exists() and any(task_dir.iterdir()) and not args.overwrite:
         raise FileExistsError(f"task directory is not empty; pass --overwrite to replace generated inputs: {task_dir}")
-    task_dir.mkdir(parents=True, exist_ok=True)
 
     poscar_src, poscar_source_label = find_structure_source(kind, case_root, args.source_poscar, args.source_dir)
-    potcar_src = args.potcar.resolve()
-    if not potcar_src.exists():
-        raise FileNotFoundError(f"POTCAR source does not exist: {potcar_src}")
+    potcar_src, potcar_meta = resolve_potcar(args, poscar_src, task_dir)
 
+    task_dir.mkdir(parents=True, exist_ok=True)
     copy_or_link(poscar_src, task_dir / "POSCAR")
-    copy_or_link(potcar_src, task_dir / "POTCAR")
+    if kind == "relax":
+        copy_or_link(poscar_src, task_dir / "POSCAR-ini")
+    if potcar_meta["mode"] == "explicit":
+        copy_or_link(potcar_src, task_dir / "POTCAR")
 
     if args.incar_template:
         incar_src = args.incar_template.resolve()
@@ -781,7 +1076,7 @@ def prepare_standard(args: argparse.Namespace) -> int:
         used_builtin_incar = False
     else:
         incar_text = build_standard_incar(kind, args)
-        incar_source = f"built-in {kind} template with CLI parameters"
+        incar_source = f"built-in {kind} INCAR preset {args.incar_preset} with CLI parameters"
         used_builtin_incar = True
     atomic_write_text(task_dir / "INCAR", incar_text.rstrip() + "\n")
 
@@ -817,11 +1112,33 @@ def prepare_standard(args: argparse.Namespace) -> int:
     atomic_write_text(task_dir / "job.sh", build_stage_slurm(kind, resources))
     (task_dir / "job.sh").chmod(0o755)
 
-    for spec in args.stage_from or []:
+    explicit_stage_from = list(args.stage_from or [])
+    explicit_destinations = {dst_str for _, dst_str, _ in explicit_stage_from}
+    automatic_stage_from: list[tuple[str, str, bool]] = []
+    if kind in {"band", "dos"}:
+        scf_dir = case_root / "electronic" / "scf"
+        for filename in ("CHGCAR", "WAVECAR"):
+            if filename in explicit_destinations:
+                continue
+            src = scf_dir / filename
+            if src.exists():
+                automatic_stage_from.append((str(src), filename, True))
+
+    stage_from_records: list[dict[str, Any]] = []
+    for origin, spec in [
+        *[("automatic scf link", item) for item in automatic_stage_from],
+        *[("explicit --stage-from", item) for item in explicit_stage_from],
+    ]:
         src_str, dst_str, link = spec
         src = Path(src_str).resolve()
         if src.exists():
-            copy_or_link(src, task_dir / dst_str, use_link=link)
+            copy_or_link(src, task_dir / dst_str, use_link=link, strict_link=link)
+            stage_from_records.append({
+                "source": str(src),
+                "destination": dst_str,
+                "mode": "symlink" if link else "copy",
+                "origin": origin,
+            })
 
     hashes = standard_hashes(task_dir)
     task_spec = {
@@ -829,16 +1146,21 @@ def prepare_standard(args: argparse.Namespace) -> int:
         "task_kind": kind,
         "stage": kind,
         "case_root": str(case_root),
+        **case_meta,
         "task_dir": str(task_dir),
         "input_sources": {
             "POSCAR": str(poscar_src),
             "POSCAR_source_note": poscar_source_label,
+            "POSCAR-ini": str(poscar_src) if kind == "relax" else "",
             "INCAR": incar_source,
             "KPOINTS": kpoints_metadata.get("source", "unknown"),
-            "POTCAR": str(potcar_src),
+            "POTCAR": potcar_meta["source"],
             "POTCAR_functional": args.potcar_functional,
-            "job.sh": "vwf built-in Slurm template",
+            "POTCAR_root": potcar_meta["root"],
+            "POTCAR_resolution": potcar_meta["mode"],
+            "job.sh": str(JOBVASP_TEMPLATE),
         },
+        "POTCAR_components": potcar_meta["components"],
         "input_hashes": hashes,
         "kpoints": kpoints_metadata,
         "incar_defaults": incar_default_metadata(kind, args, used_builtin_incar),
@@ -846,6 +1168,8 @@ def prepare_standard(args: argparse.Namespace) -> int:
         "resource_hash": resource_hash(resources, 1),
         "created_at": now_iso(),
     }
+    if stage_from_records:
+        task_spec["stage_from"] = stage_from_records
     if kind == "scf":
         task_spec["dependency"] = "relax/CONTCAR unless overridden"
     if kind in {"band", "dos"}:
@@ -907,6 +1231,8 @@ def default_automation_plan(case_root: Path) -> dict[str, Any]:
                 "submit_command": "sbatch job.sh",
                 "review_file": REVIEW_NAME,
                 "approval_file": APPROVAL_NAME,
+                "preapproved_by_workflow": False,
+                "workflow_preapproval_note": "Set true only when the initial reviewed computation plan already covers this stage's exact inputs/resources.",
                 # Existence gate first (don't parse a half-written run), then the
                 # authoritative check: ionic convergence via `vwf parse`.
                 "completion_files": ["CONTCAR", "OUTCAR"],
@@ -942,6 +1268,8 @@ def default_automation_plan(case_root: Path) -> dict[str, Any]:
                 "submit_command": "sbatch job.sh",
                 "review_file": REVIEW_NAME,
                 "approval_file": APPROVAL_NAME,
+                "preapproved_by_workflow": False,
+                "workflow_preapproval_note": "Set true only when the initial reviewed computation plan already covers this stage's exact inputs/resources.",
                 # Derived input: take the converged geometry from relax. Declared
                 # here so it is part of the approved envelope (Safety Model).
                 "inputs_from": [{"stage": "relax", "file": "CONTCAR", "to": "POSCAR"}],
@@ -1018,10 +1346,74 @@ def stage_current_resource_hash(stage_root: Path) -> str | None:
     return None
 
 
+def stage_recorded_input_hashes(stage_root: Path) -> dict[str, str] | None:
+    if (stage_root / STATE_NAME).exists():
+        state = load_json(stage_root / STATE_NAME)
+        hashes = state.get("input_hashes")
+        return hashes if isinstance(hashes, dict) else None
+    if (stage_root / "task_spec.json").exists():
+        task_spec = load_json(stage_root / "task_spec.json")
+        hashes = task_spec.get("input_hashes")
+        return hashes if isinstance(hashes, dict) else None
+    return None
+
+
+def stage_recorded_resource_hash(stage_root: Path) -> str | None:
+    if (stage_root / STATE_NAME).exists():
+        state = load_json(stage_root / STATE_NAME)
+        value = state.get("resource_hash")
+        return str(value) if value else None
+    if (stage_root / "task_spec.json").exists():
+        task_spec = load_json(stage_root / "task_spec.json")
+        value = task_spec.get("resource_hash")
+        return str(value) if value else None
+    return None
+
+
+def stage_has_workflow_preapproval(case_root: Path, stage: dict[str, Any], review_text: str) -> bool:
+    if not stage.get("preapproved_by_workflow", False):
+        return False
+    stage_root = case_root / str(stage.get("path", "."))
+    current_input_hashes = stage_current_input_hashes(stage_root)
+    current_resource_hash = stage_current_resource_hash(stage_root)
+    if current_input_hashes is None or current_resource_hash is None:
+        return False
+    if stage_recorded_input_hashes(stage_root) != current_input_hashes:
+        return False
+    if stage_recorded_resource_hash(stage_root) != current_resource_hash:
+        return False
+
+    expected_review_hash = stage.get("workflow_preapproved_review_hash")
+    if expected_review_hash and expected_review_hash != sha256_text(review_text):
+        return False
+
+    expected_input_hashes = stage.get("workflow_preapproved_input_hashes")
+    if expected_input_hashes is not None and expected_input_hashes != current_input_hashes:
+        return False
+
+    expected_resource_hash = stage.get("workflow_preapproved_resource_hash")
+    if expected_resource_hash is not None and expected_resource_hash != current_resource_hash:
+        return False
+
+    return True
+
+
 def stage_has_approval(case_root: Path, stage: dict[str, Any]) -> bool:
+    if not stage.get("review_file"):
+        return False
     review = resolve_stage_path(case_root, stage, "review_file")
+    if not review.exists():
+        return False
+    review_text = review.read_text(encoding="utf-8", errors="replace")
+
+    if stage_has_workflow_preapproval(case_root, stage, review_text):
+        return True
+
+    approval_file = stage.get("approval_file")
+    if not approval_file:
+        return False
     approval = resolve_stage_path(case_root, stage, "approval_file")
-    if not review.exists() or not approval.exists():
+    if not approval.exists():
         return False
     try:
         payload = load_json(approval)
@@ -1030,7 +1422,6 @@ def stage_has_approval(case_root: Path, stage: dict[str, Any]) -> bool:
     if not payload.get("approved", False):
         return False
     if payload.get("review_hash"):
-        review_text = review.read_text(encoding="utf-8", errors="replace")
         if payload.get("review_hash") != sha256_text(review_text):
             return False
     else:
@@ -1333,8 +1724,9 @@ def stage_inputs(case_root: Path, stage: dict[str, Any], by_name: dict[str, dict
             if use_link:
                 try:
                     dst.symlink_to(os.path.relpath(src, dst.parent))
-                except OSError:
-                    shutil.copy2(src, dst)
+                except OSError as exc:
+                    missing.append(f"{dst} (symlink failed: {exc})")
+                    continue
             else:
                 shutil.copy2(src, dst)
         changed = True
@@ -1422,7 +1814,7 @@ def automation_tick(args: argparse.Namespace) -> int:
             print(f"[ready] {stage['name']} (auto_submit=false)")
             continue
         if not stage_has_approval(case_root, stage):
-            block(stage, "missing review or approved submission_approval.json")
+            block(stage, "missing review, matching stage approval, or workflow preapproval")
             changed = True
             continue
         command = str(stage["submit_command"])
@@ -1622,7 +2014,7 @@ def build_worker_slurm(taskset: Path, worker_id: str, resources: dict[str, Any])
 
 
 def prepare_phonon_fd(args: argparse.Namespace) -> int:
-    case_root = args.case_root.resolve()
+    case_root, case_meta = resolve_case_root(args)
     source = find_source_dir(case_root, args.source_dir)
     taskset = case_taskset_path(case_root, args.taskset)
     if taskset.exists() and not args.overwrite:
@@ -1702,6 +2094,7 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
         "schema_version": 1,
         "kind": "phonon-fd-worker-queue",
         "case_root": str(case_root),
+        **case_meta,
         "taskset": str(taskset),
         "source_dir": str(source),
         "input_sources": {
@@ -1726,6 +2119,7 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
     task_spec = {
         "schema_version": 1,
         "task_kind": "phonon-fd",
+        **case_meta,
         "taskset": str(taskset),
         "source_dir": str(source),
         "input_hashes": hashes,
@@ -1750,6 +2144,11 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
         f"generated_at = {now_iso()}",
         f"taskset = {taskset}",
         f"kind = {state.get('kind')}",
+        f"project_slug = {state.get('project_slug') or 'unknown'}",
+        f"system_slug = {state.get('system_slug') or 'unknown'}",
+        f"case_slug = {state.get('case_slug') or 'unknown'}",
+        f"cluster = {state.get('cluster') or 'unknown'}",
+        f"case_root_source = {state.get('case_root_source') or 'unknown'}",
         "",
         "[inputs]",
         f"POSCAR.source = {state['input_sources'].get('POSCAR', 'unknown')}",
@@ -1807,6 +2206,11 @@ def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) 
         f"kind = {task_spec.get('task_kind')}",
         f"workflow_stage = {task_spec.get('stage')}",
         f"dependency = {task_spec.get('dependency', 'none or explicit user source')}",
+        f"project_slug = {task_spec.get('project_slug') or 'unknown'}",
+        f"system_slug = {task_spec.get('system_slug') or 'unknown'}",
+        f"case_slug = {task_spec.get('case_slug') or 'unknown'}",
+        f"cluster = {task_spec.get('cluster') or 'unknown'}",
+        f"case_root_source = {task_spec.get('case_root_source') or 'unknown'}",
         "",
         "[inputs]",
         f"POSCAR.source = {task_spec.get('input_sources', {}).get('POSCAR', 'unknown')}",
@@ -1814,6 +2218,9 @@ def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) 
         f"POSCAR.sha256 = {hashes.get('POSCAR', 'missing')}",
         f"POSCAR.summary = {read_poscar_summary(task_dir / 'POSCAR')}",
         *read_poscar_details(task_dir / "POSCAR"),
+        f"POSCAR-ini.source = {task_spec.get('input_sources', {}).get('POSCAR-ini', '')}",
+        f"POSCAR-ini.sha256 = {hashes.get('POSCAR-ini', '')}",
+        "POSCAR-ini.restart_rule = keep this initial geometry backup so a scattered relax can restart from the original approved structure",
         f"INCAR.source = {task_spec.get('input_sources', {}).get('INCAR', 'unknown')}",
         f"INCAR.sha256 = {hashes.get('INCAR', 'missing')}",
         f"INCAR.summary = {read_incar_summary(task_dir / 'INCAR')}",
@@ -1838,6 +2245,8 @@ def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) 
             lines.append(f"INCAR.ediff_policy = {incar_defaults['ediff_policy']}")
         if incar_defaults.get("relax_ediffg_policy"):
             lines.append(f"INCAR.relax_ediffg_policy = {incar_defaults['relax_ediffg_policy']}")
+        if incar_defaults.get("magmom_review"):
+            lines.append(f"INCAR.magmom_review = {incar_defaults['magmom_review']}")
     lines.extend([
         "INCAR.change_review = confirm complete effective INCAR and any inherited/appended/overridden parameters",
         "INCAR.complete_begin",
@@ -1858,14 +2267,38 @@ def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) 
     lines.extend([
         "KPOINTS.generator_env_review = if VASPKIT/pymatgen/SeeK-path is expected but missing, stop and activate/install the environment",
         f"POTCAR.source = {task_spec.get('input_sources', {}).get('POTCAR', 'unknown')}",
+        f"POTCAR.root = {task_spec.get('input_sources', {}).get('POTCAR_root', '')}",
+        f"POTCAR.resolution = {task_spec.get('input_sources', {}).get('POTCAR_resolution', 'explicit')}",
         f"POTCAR.functional = {task_spec.get('input_sources', {}).get('POTCAR_functional', DEFAULT_POTCAR_FUNCTIONAL)}",
         f"POTCAR.sha256 = {hashes.get('POTCAR', 'missing')}",
         f"POTCAR.summary = {read_potcar_summary(task_dir / 'POTCAR')}",
         "POTCAR.user_choice_required = true",
         "POTCAR.choice_review = user must confirm functional, element order, and potential labels before generation/submission",
         "POTCAR.public_repo_rule = do not commit or publish POTCAR contents",
+        f"job.sh.source = {task_spec.get('input_sources', {}).get('job.sh', 'unknown')}",
         f"job.sh.sha256 = {hashes.get('job.sh', 'missing')}",
         "",
+    ])
+    stage_from_records = task_spec.get("stage_from", [])
+    if stage_from_records:
+        lines.append("[stage_from]")
+        for index, record in enumerate(stage_from_records, start=1):
+            lines.append(
+                f"stage_from.{index} = {record.get('source')} -> "
+                f"{record.get('destination')} ({record.get('mode')}; {record.get('origin', 'unknown')})"
+            )
+        lines.append("")
+    components = task_spec.get("POTCAR_components", [])
+    if components:
+        lines.append("[potcar_components]")
+        for item in components:
+            lines.append(
+                "POTCAR.component = "
+                f"element:{item.get('element')} label:{item.get('label')} "
+                f"path:{item.get('path')} sha256:{item.get('sha256')} title:{item.get('title')}"
+            )
+        lines.append("")
+    lines.extend([
         "[resources]",
         f"profile = {resources.get('profile')}",
         f"partition = {resources.get('partition')}",
@@ -2124,11 +2557,14 @@ def add_resource_args(parser: argparse.ArgumentParser) -> None:
 
 def add_standard_prepare_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser], kind: str) -> None:
     parser = subparsers.add_parser(kind)
-    parser.add_argument("--case-root", type=Path, required=True)
+    add_case_args(parser)
     parser.add_argument("--source-poscar", type=Path, default=None)
     parser.add_argument("--source-dir", type=Path, default=None)
-    parser.add_argument("--potcar", type=Path, required=True, help="Explicit POTCAR source chosen by the user.")
+    parser.add_argument("--potcar", type=Path, default=None, help="Explicit POTCAR source chosen by the user.")
+    parser.add_argument("--potcar-root", type=Path, default=None, help="Root directory used to auto-resolve element POTCAR files.")
+    parser.add_argument("--potcar-label", action="append", default=[], help="Override one element label, e.g. Si=Si_GW or O=O_s.")
     parser.add_argument("--potcar-functional", default=DEFAULT_POTCAR_FUNCTIONAL)
+    parser.add_argument("--incar-preset", choices=INCAR_PRESETS, default="standard")
     parser.add_argument("--incar-template", type=Path, default=None)
     parser.add_argument("--kpoints-source", type=Path, default=None)
     parser.add_argument("--kmesh", default="1 1 1")
@@ -2136,14 +2572,15 @@ def add_standard_prepare_parser(subparsers: argparse._SubParsersAction[argparse.
     parser.add_argument("--ediff", default=None)
     parser.add_argument("--ediffg", default=DEFAULT_RELAX_EDIFFG)
     parser.add_argument("--ibrion", type=int, default=2)
-    parser.add_argument("--isif", type=int, default=3)
-    parser.add_argument("--nsw", type=int, default=DEFAULT_RELAX_NSW)
+    parser.add_argument("--isif", type=int, default=None)
+    parser.add_argument("--nsw", type=int, default=None)
     parser.add_argument("--ismear", type=int, default=0)
     parser.add_argument("--sigma", default="0.05")
     parser.add_argument("--lorbit", type=int, default=11)
     parser.add_argument("--nedos", type=int, default=2001)
     parser.add_argument("--line-points", type=int, default=20)
     parser.add_argument("--ncore", type=int, default=None)
+    parser.add_argument("--magmom", default=None, help="MAGMOM line used by magnetic INCAR presets.")
     parser.add_argument("--stage-from", type=parse_stage_from, action="append", default=[])
     parser.add_argument("--overwrite", action="store_true")
     add_resource_args(parser)
@@ -2155,7 +2592,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p_init = sub.add_parser("init-case")
-    p_init.add_argument("--case-root", type=Path, required=True)
+    add_case_args(p_init)
     p_init.set_defaults(func=init_case)
 
     p_prepare = sub.add_parser("prepare")
@@ -2163,7 +2600,7 @@ def build_parser() -> argparse.ArgumentParser:
     for kind in ("relax", "scf", "band", "dos"):
         add_standard_prepare_parser(prep_sub, kind)
     p_fd = prep_sub.add_parser("phonon-fd")
-    p_fd.add_argument("--case-root", type=Path, required=True)
+    add_case_args(p_fd)
     p_fd.add_argument("--taskset", required=True)
     p_fd.add_argument("--source-dir", type=Path, default=None)
     p_fd.add_argument("--potcar-functional", default=DEFAULT_POTCAR_FUNCTIONAL)

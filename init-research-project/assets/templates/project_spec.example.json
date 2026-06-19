@@ -23,5 +23,35 @@
     }
   ],
   "deliverables": ["validated structures", "publication-ready plot data"],
-  "constraints": ["TBD / 待补充"]
+  "constraints": ["TBD / 待补充"],
+  "computation_plan": {
+    "models": ["Na-intercalated graphene interface candidate structures / 钠插层石墨烯界面候选结构"],
+    "methods": ["VASP PBE relax -> SCF -> band/DOS / VASP PBE 优化到静态与电子结构"],
+    "parameter_matrix": ["TBD convergence tests for ENCUT and KPOINTS / ENCUT 与 KPOINTS 收敛测试待定"],
+    "vasp_workflow_envelope": [
+      {
+        "system_slug": "na_graphene_interface",
+        "case_slug": "pbe_static_chain",
+        "stages": ["relax", "scf", "band", "dos"],
+        "incar_inheritance": "SCF/band/DOS inherit reviewed electronic settings from the initial protocol unless listed in stage_overrides / 后续计算继承初始协议中的电子参数，除非在 stage_overrides 中列出",
+        "stage_overrides": {
+          "scf": {"IBRION": -1, "NSW": 0, "LWAVE": ".TRUE.", "LCHARG": ".TRUE."}
+        },
+        "kpoints_policy": "TBD meshes and band path before production / 生产计算前确定网格和能带路径",
+        "potcar_labels": {"Na": "Na_pv", "C": "C"},
+        "cluster_profile": "nmg",
+        "restart_link_policy": "Use ln -s for SCF CHGCAR/WAVECAR in downstream tasks / 后续任务用 ln -s 链接 SCF 的 CHGCAR/WAVECAR"
+      }
+    ],
+    "convergence": ["relax ionic convergence by parser/review before SCF / relax 经解析确认离子收敛后才进入 SCF"],
+    "validation": ["Compare structural sanity and electronic outputs across candidates / 比较候选结构合理性与电子输出"],
+    "resource_budget": "TBD / 待补充",
+    "stop_conditions": ["Stop if convergence/resource envelope is exceeded without review / 超出收敛或资源参数包时停止并复核"]
+  },
+  "systems": [
+    {
+      "system_slug": "na_graphene_interface",
+      "case_slugs": ["relax_pbe", "scf_pbe"]
+    }
+  ]
 }

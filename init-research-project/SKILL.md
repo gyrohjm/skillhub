@@ -31,9 +31,32 @@ raw_data/
 formal_data/
 ```
 
-Use English `lowercase_snake_case` for directories, Python files, notebooks, and data files. Root convention files may use standard uppercase names such as `README.md`, `PROJECT_CONTEXT.md`, and `AGENTS.md`.
+Use English `lowercase_snake_case` for directories, Python files, notebooks, and data files. Root convention files may use standard uppercase names such as `README.md`, `PROJECT_CONTEXT.md`, `AGENTS.md`, and `CLAUDE.md`.
 
-Treat `PROJECT_CONTEXT.md` as the human and agent source of truth. Keep `AGENTS.md` short and point it to the project context and research plans.
+Treat `PROJECT_CONTEXT.md` as the human and agent source of truth. Keep
+`AGENTS.md` and `CLAUDE.md` short and point them to the project context and
+research plans. For computational or hybrid projects, both files must also name
+the VASP handoff skills: use `vasp-workflow` for the running/orchestration
+layer, including task creation, submit review, Slurm submission, automation,
+and bounded recovery; use `vasp-work-manager` for the records/archive layer,
+including task intake, ledger records, archives, manifests, checksums, and
+project summaries; use `vasp-analysis` for completed-output `.dat` extraction,
+plotting, reporting, interpretation, and next-task recommendations.
+
+Put plan documents under `docs/plans/` and decision/execution records under
+`docs/records/`. For computational projects, store raw calculation data under
+`raw_data/calculations/<system_slug>/<case_slug>/`; `system_slug` and
+`case_slug` must be English `lowercase_snake_case`.
+For VASP projects, define the relax/SCF/band/DOS/phonon parameter envelope in
+`docs/plans/computation_plan.md` during initialization so downstream steps can
+reuse pre-reviewed INCAR/KPOINTS/POTCAR/resource choices without a new
+scientific decision.
+
+Treat `raw_data/` and `formal_data/` as local research-project directories. Do
+not recreate them in cluster project roots. Cluster VASP cases keep source
+outputs and case-local `analysis/` products together; the cluster project root
+only needs a concise `docs/project_summary.md` index in addition to
+calculations, archive, and ledger records.
 
 ## Data Integrity
 
@@ -44,6 +67,8 @@ raw_data -> code processing -> validation -> user approval -> formal_data
 ```
 
 - Never modify source files in `raw_data` in place.
+- Keep pre-relax and post-relax structures in raw calculation data first.
+- Copy approved reusable structures only to `formal_data/structures/<system_slug>/`.
 - Never promote data automatically.
 - Preview promotion first; require the explicit `--approve` flag.
 - Never overwrite an existing formal artifact.
@@ -66,9 +91,12 @@ python scripts/promote_formal_data.py --project <project_path> --source <process
 
 ## Handoffs
 
-- For calculation-specific VASP setup, review, or submission, hand off to `vasp-workflow`.
-- For extraction, plotting, or interpretation of completed VASP outputs, hand off to `vasp-analysis`.
-- For archiving or integrity verification, hand off to `vasp-work-manager`.
+- For calculation-specific VASP task creation, orchestration, review,
+  submission, or recovery, hand off to `vasp-workflow`.
+- For VASP task intake, ledger records, archiving, reporting, or integrity
+  verification, hand off to `vasp-work-manager`.
+- For extraction, plotting, or interpretation of completed VASP outputs, hand
+  off to `vasp-analysis`.
 - Keep this skill focused on project definition, initialization, and data-governance boundaries.
 
 ## Reference Map

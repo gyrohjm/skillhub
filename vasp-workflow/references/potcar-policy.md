@@ -16,12 +16,30 @@ POTCAR path or element-specific label before generating or submitting inputs.
 The Agent may default the functional to PBE, but it must not silently choose the
 concrete POTCAR label/path when multiple choices are plausible.
 
+Default cluster POTCAR roots:
+
+```text
+nmg: /home/jmhe/app/pot
+phoenix, phoenix-gpu-a100, phoenix-gpu-g3: /home/jmhe/app/pot_database
+generic: no default; require --potcar or --potcar-root
+```
+
+For standard `vwf prepare relax|scf|band|dos`, prefer an explicit `--potcar`
+when the user has already selected a concatenated file. Otherwise the helper may
+search the profile default root or `--potcar-root`, parse POSCAR element order,
+and concatenate one uniquely matched `POTCAR` per element. Use
+`--potcar-label ELEMENT=LABEL` for labels such as `Si_GW` or `O_s`.
+
+If an element is missing or more than one candidate exists, stop and show the
+missing element or candidate paths. Do not guess.
+
 Every submit review must show:
 
 - functional, normally `PBE`;
 - element order as used by POSCAR/POTCAR;
 - POTCAR labels or `TITEL` lines;
 - source path;
+- auto-resolution root and per-element component paths when generated;
 - SHA256 hash;
 - statement that POTCAR content must not be committed to public repositories.
 

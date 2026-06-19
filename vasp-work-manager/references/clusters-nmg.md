@@ -8,13 +8,28 @@ MacBook SSH path.
 - SSH alias: `nmg-macbook`
 - Local key: `/Users/gyro/.ssh/id_nmg_macbook_ed25519`
 - Preferred test root on cluster: `/home/jmhe/project/vaspmgr_test`
-- Existing project copy observed before: `/home/jmhe/vasp-work-maneger`
+- Default managed project root: `/home/jmhe/projects/<project_slug>`
+- Default production calculation root: `/home/jmhe/projects/<project_slug>/calculations/<system_slug>/<case_slug>`
+- Default production archive root: `/home/jmhe/projects/<project_slug>/archive`
+- Default ledger path: `/home/jmhe/projects/<project_slug>/ledger/vwm.sqlite`
+- Default POTCAR root: `/home/jmhe/app/pot`
+- Legacy paths observed before: `/home/jmhe/project/...` and
+  `/home/jmhe/vasp-work-maneger`
 
 Recheck these paths before relying on them.
 
 ## Safe Defaults
 
 - Keep tests under `/home/jmhe/project/vaspmgr_test`, not the cluster home root.
+- For managed production work, first create one short English project slug under
+  `/home/jmhe/projects/<project_slug>`. If the local project name is Chinese,
+  translate it to concise English `lowercase_snake_case` and confirm it.
+- Keep production calculation cases under
+  `/home/jmhe/projects/<project_slug>/calculations/<system_slug>/<case_slug>`.
+- Keep archives under `/home/jmhe/projects/<project_slug>/archive`.
+- Do not create cluster-side `raw_data/` or `formal_data/`. Run processing and
+  plotting under each case's `analysis/` directory, and summarize paths and
+  conclusions in `/home/jmhe/projects/<project_slug>/docs/project_summary.md`.
 - Use explicit project and task directories.
 - Use VASPKIT for KPOINTS/POTCAR only when the user asks or the workflow already
   depends on it.
@@ -41,17 +56,20 @@ df -h /home
 Use persistent storage:
 
 ```bash
-LEDGER=/home/jmhe/project/vaspmgr_test/vwm.sqlite
-ARCHIVE=/home/jmhe/project/vaspmgr_test/archive
+PROJECT_ROOT=/home/jmhe/projects/sic_test
+LEDGER=$PROJECT_ROOT/ledger/vwm.sqlite
+ARCHIVE=$PROJECT_ROOT/archive
 ```
 
 Example:
 
 ```bash
 python /path/to/vasp-work-manager/scripts/vwm_archive.py \
-  --source /home/jmhe/project/vaspmgr_test/runs/sic_relax \
-  --project sic-test \
-  --task sic-relax \
+  --source "$PROJECT_ROOT/calculations/sic_bulk/relax_pbe" \
+  --project sic_test \
+  --task sic_bulk.relax_pbe \
+  --system-slug sic_bulk \
+  --case-slug relax_pbe \
   --archive-root "$ARCHIVE" \
   --ledger "$LEDGER" \
   --cluster nmg

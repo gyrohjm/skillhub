@@ -1,6 +1,6 @@
 ---
 name: vasp-analysis
-description: Extract, validate, plot, and interpret VASP post-processing data. Use when converting VASP, phonopy, LOBSTER, PyProcar, VASPKIT, CHGCAR/ELFCAR/PARCHG, DOSCAR, EIGENVAL, PROCAR, band.yaml, total_dos.dat, COHPCAR, ICOHPLIST, or notebook outputs into plot-ready .dat files, figures, analysis reports, and next-step recommendations without submitting new calculations.
+description: Process and analyze completed VASP outputs by extracting validated plot-ready .dat files, generating figures, writing interpretation reports, and recommending next calculations without submitting jobs. Use when converting VASP, phonopy, LOBSTER, PyProcar, VASPKIT, CHGCAR/ELFCAR/PARCHG, DOSCAR, EIGENVAL, PROCAR, band.yaml, total_dos.dat, COHPCAR, ICOHPLIST, or notebook outputs into reusable data products. Do not use for task creation/submission or archive ledger registration; hand those to vasp-workflow and vasp-work-manager.
 ---
 
 # VASP Analysis
@@ -12,7 +12,19 @@ plot-ready `.dat` data, then figures, then interpretation reports. JSON is only
 for metadata such as `plot_manifest.json`.
 
 Use `vasp-workflow` to prepare or submit calculations. Use `vasp-work-manager`
-to archive completed tasks, plot data, figures, and reports.
+to register/archive completed tasks, plot data, figures, and reports.
+
+## Skill Boundary
+
+- Owns: extraction from completed outputs, `.dat` data contracts, validation,
+  plotting, report writing, interpretation, uncertainty notes, and next-task
+  recommendations.
+- Does not own: creating or submitting VASP tasks, changing calculation inputs,
+  workflow automation, durable archive manifests/checksums, ledger records, or
+  cleanup decisions.
+- Handoff: send new calculation requests to `vasp-workflow`; send completed
+  outputs, `.dat` files, figures, and reports to `vasp-work-manager` for
+  registration, archiving, and verification.
 
 ## Required First Steps
 
@@ -29,6 +41,10 @@ to archive completed tasks, plot data, figures, and reports.
 
 ## Operating Rules
 
+- On clusters, work in the source calculation case. Write outputs under
+  `<case_root>/analysis/plot_data`, `<case_root>/analysis/figures`, and
+  `<case_root>/analysis/reports`; do not create or populate cluster-side
+  `raw_data/` or `formal_data/` directories.
 - Preserve source provenance in `.dat` comment headers.
 - Prefer one table per physical curve family, such as `dos_total.dat`,
   `phonon_band.dat`, `chgdiff_z.dat`, or `pcohp_selected_bonds.dat`.
@@ -36,12 +52,20 @@ to archive completed tasks, plot data, figures, and reports.
 - Keep plot-ready arrays parseable with plain whitespace splitting.
 - Do not store primary numeric plot data only in `.json`, notebook output, or a
   PNG. JSON may describe metadata, not replace `.dat`.
+- Do not register tasks, write archive manifests, verify archive checksums, or
+  decide cleanup. Produce the data/report paths and hand them to
+  `vasp-work-manager`.
+- Keep project-level reporting concise: write the detailed case report under
+  the case `analysis/reports/` directory, then provide paths, validation state,
+  and key conclusions for `vasp-work-manager` to add to
+  `<project_root>/docs/project_summary.md`.
 - When optional tools are missing, report the missing dependency and the source
   files needed to rerun extraction.
 
 ## Data Validator
 
-Use the bundled validator before archiving or reporting:
+Use the bundled validator before reporting or handing data to
+`vasp-work-manager`:
 
 ```bash
 SKILL=/Users/gyro/Library/CloudStorage/SynologyDrive-note-sync/project/coding/skillhub/vasp-analysis

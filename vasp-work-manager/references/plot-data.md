@@ -73,9 +73,21 @@ Do not assume a PNG can be regenerated without these files.
 
 ## Collection
 
-The archive script already keeps plot-ready files by default, so avoid a
-separate plot-data script unless this becomes a repeated standalone workflow.
-For a plot-only bundle, use ordinary copy commands after a dry-run listing:
+On clusters, process and plot directly in the calculation case root:
+
+```text
+<case_root>/analysis/plot_data/
+<case_root>/analysis/figures/
+<case_root>/analysis/reports/
+```
+
+Do not create a cluster `raw_data/` tree or duplicate source outputs for
+plotting. Analysis files should point back to the original case files through
+their provenance headers. The archive script already keeps plot-ready files by
+default.
+
+Create a separate plot-only bundle only when the user explicitly needs a
+transfer artifact. After a dry-run listing, use ordinary copy commands:
 
 ```bash
 find /path/to/run -type f \( -name '*.dat' -o -name '*.csv' -o -name '*.json' -o -name '*.png' -o -name '*.pdf' \)
@@ -97,3 +109,7 @@ For figures created from notebooks, keep:
 
 Do not keep notebook execution caches or unrelated exploratory output in the
 archive.
+
+At project level, add only a concise entry to `docs/project_summary.md` with
+the case path, report path, key figure paths, validation status, and main
+conclusion. Keep numeric arrays in the case `analysis/plot_data/` directory.

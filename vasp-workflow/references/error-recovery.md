@@ -16,6 +16,9 @@ handoff or retry behavior, and keep it explicit, logged, and bounded.
 If these packages are missing, ask the user to install or activate a Python
 environment before enabling automated correction.
 
+For concrete Slurm, VASP, Wannier90, and phonopy failure signatures, read
+`common-errors.md` before proposing parameter or resource changes.
+
 ## Recovery Rules
 
 - Default is no automatic recovery.
@@ -45,14 +48,18 @@ condition whose only real fix is a scientific or resource change is mapped to
 allow-list are documented in `automation-cron.md` (Recovery). Behavior summary:
 
 - Safe actions it may run: `restart_from_contcar` (continue a relax from its own
-  converged geometry), `restage_inputs` (re-pull a declared `inputs_from` file
+  latest `CONTCAR` geometry), `restage_inputs` (re-pull a declared `inputs_from` file
   such as CHGCAR), `resubmit` (transient/walltime with no restart geometry yet).
 - Always blocks for review: out-of-memory, missing VASP/module, ZHEGV/LAPACK
   numerical failures, and electronic non-convergence (these need ALGO / NELM /
   mixing / resource / NCORE-KPAR decisions).
 - Before each retry it moves the prior `OUTCAR/OSZICAR/vasp.out/vasp.err` into
-  `recovery_attempts/attempt-N/`, so the next attempt is judged on its own
-  outputs and provenance is preserved.
+  `recovery_attempts/attempt-N/`. For relax continuations it also preserves
+  `CONTCAR`, so the exact geometry and debug output for every unconverged
+  attempt remain available.
+- `restart_from_contcar` copies the latest `CONTCAR` to `POSCAR`, then archives
+  the prior attempt files before the next run. It must not overwrite
+  `POSCAR-ini`, the initial approved structure backup.
 - Use `recovery_strategy: command` + `recovery_command` when you need a richer,
   user-owned repair (e.g. a custodian run); the engine and the command path are
   mutually exclusive per stage.
@@ -66,6 +73,9 @@ allow-list are documented in `automation-cron.md` (Recovery). Behavior summary:
 - Ionic non-convergence: continuation from `CONTCAR` can be pre-approved for
   relax only; changing POTIM, IBRION, ISIF, constraints, or force thresholds
   needs explicit approval.
+- Do not advance to SCF just because `CONTCAR` exists. Use the parser/review
+  convergence verdict; a one-step final continuation is only supporting
+  evidence.
 - Corrupt restart files: deleting `WAVECAR` or `CHGCAR` may be safe only when
   the stage review says those files are disposable for that task.
 - Phonon FD failures: retry the failed displacement first. Do not regenerate the

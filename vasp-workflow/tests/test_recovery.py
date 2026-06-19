@@ -72,6 +72,7 @@ def _failed_stage_dir(case: Path, vasp_out: str, *, contcar: str | None = None) 
     (d / "OUTCAR").write_text(MIN_OUTCAR, encoding="utf-8")
     (d / "vasp.out").write_text(vasp_out, encoding="utf-8")
     (d / "POSCAR").write_text("OLD-GEOMETRY", encoding="utf-8")
+    (d / "POSCAR-ini").write_text("INITIAL-GEOMETRY", encoding="utf-8")
     if contcar is not None:
         (d / "CONTCAR").write_text(contcar, encoding="utf-8")
     return d
@@ -90,8 +91,11 @@ def test_classify_restart_archives_and_readies(tmp_path: Path) -> None:
     assert "job_id" not in stage
     # CONTCAR became the new POSCAR; stale outputs archived out of the way.
     assert (tmp_path / "relax" / "POSCAR").read_text(encoding="utf-8") == "NEW-GEOMETRY"
+    assert (tmp_path / "relax" / "POSCAR-ini").read_text(encoding="utf-8") == "INITIAL-GEOMETRY"
     assert (tmp_path / "relax" / "recovery_attempts" / "attempt-1" / "OUTCAR").exists()
+    assert (tmp_path / "relax" / "recovery_attempts" / "attempt-1" / "CONTCAR").read_text(encoding="utf-8") == "NEW-GEOMETRY"
     assert not (tmp_path / "relax" / "OUTCAR").exists()
+    assert not (tmp_path / "relax" / "CONTCAR").exists()
 
 
 def test_classify_dry_run_changes_nothing(tmp_path: Path) -> None:

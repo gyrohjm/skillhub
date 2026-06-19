@@ -34,6 +34,26 @@ show the actual partition, node count, task count, wall time, and VASP command
 before submission. For Phoenix CPU/GPU submission templates and G3/H100
 cautions, read `phoenix-submit.md`.
 
+Default persistent calculation root for nmg/Phoenix work:
+
+```text
+/home/jmhe/project/<project_slug>/calculations/<system_slug>/<case_slug>
+```
+
+For new cases intended for `vasp-work-manager` intake/records, prefer:
+
+```text
+/home/<user>/projects/<project_slug>/calculations/<system_slug>/<case_slug>
+```
+
+Pass that path with `--case-root` until the helper default is intentionally
+migrated.
+
+Default POTCAR roots are `/home/jmhe/app/pot` on nmg and
+`/home/jmhe/app/pot_database` on Phoenix profiles. These roots are search
+starting points only; submit review must still show the resolved per-element
+POTCAR paths and hashes.
+
 For GPU VASP on Phoenix, prefer `g3`/H100 after live checks and a short
 validation job, but throttle job count because the node has limited CPU cores
 and concurrent GPU jobs can cause CPU contention. See `phoenix-submit.md`.

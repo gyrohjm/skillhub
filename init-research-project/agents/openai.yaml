@@ -1,4 +1,4 @@
 interface:
   display_name: "科研项目启动"
   short_description: "通过科研访谈、实验计算设计与安全目录初始化启动新项目"
-  default_prompt: "Use $init-research-project to interview me, design an executable research plan, preview the project structure, and initialize it safely."
+  default_prompt: "Use $init-research-project to interview me, design an executable research plan, preview the project structure, initialize it safely, and create AGENTS.md/CLAUDE.md handoff guidance when relevant."

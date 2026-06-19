@@ -30,4 +30,4 @@ Start with the smallest discriminating pilot. Promote a pilot to production only
 - Stop when the predefined acceptance criterion is met with adequate replication.
 - Stop or redesign when controls fail, calibration drifts, measurements saturate, or the hypothesis cannot be distinguished from alternatives.
 - Do not change exclusion criteria after viewing outcomes without recording the decision and rationale.
-- Record protocol changes in `docs/decisions.md` and task execution in `docs/task_logs/`.
+- Record protocol changes in `docs/records/decisions.md` and task execution in `docs/records/task_logs/`.

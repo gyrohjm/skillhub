@@ -9,4 +9,46 @@ task_id | hypothesis | model | method | parameter_set | convergence |
 validation | resource_budget | stop_condition | output_path
 ```
 
-Store original calculation outputs under `raw_data/calculations/`. Put reusable preparation and analysis code under `code/`.
+Store original calculation inputs, outputs, pre-relax structures, and post-relax structures under `raw_data/calculations/<system_slug>/<case_slug>/`. Put reusable preparation and analysis code under `code/`. Copy structures to `formal_data/structures/<system_slug>/` only after explicit approval.
+
+## VASP Workflow Parameter Envelope / VASP 流程参数包
+
+Define this section before production VASP runs. If a later stage stays inside
+this envelope, it can reuse the initial workflow approval; if it changes any
+scientific parameter, structure source, POTCAR label, KPOINTS policy, or resource
+profile, create a new review.
+
+Use `vasp-workflow` for the running/orchestration layer, `vasp-work-manager` for
+the records/archive layer, and `vasp-analysis` for completed-output processing,
+figures, reports, and next-task recommendations. The initialized `AGENTS.md` and
+`CLAUDE.md` files contain the short handoff rules for future agents.
+
+```text
+system_slug | case_slug | stage | structure_source | incar_inherited |
+incar_overrides | kpoints_policy | potcar_labels | cluster_profile |
+resource_profile | completion_gate | downstream_inputs
+```
+
+Minimum required stages for a standard VASP chain:
+
+- `relax`: initial POSCAR source, full INCAR, KPOINTS mesh, POTCAR labels, `POSCAR-ini` retention rule, relax convergence gate, and allowed continuation limit.
+- `scf`: relaxed `CONTCAR` source, inherited relax parameters, explicit static overrides (`IBRION=-1`, `NSW=0`, `LWAVE=.TRUE.`, `LCHARG=.TRUE.` unless changed), KPOINTS mesh, and convergence gate.
+- `band` and `dos`: relaxed structure source, inherited electronic parameters, explicit K-path or DOS KPOINTS policy, and links to SCF `CHGCAR`/`WAVECAR` when required.
+- `phonon` or other follow-up tasks: relaxed structure source, finite-displacement or DFPT settings, supercell dimensions, worker count, and force convergence gate.
+
+Large SCF restart outputs must be reused with symbolic links, not copied:
+
+```bash
+ln -s ../scf/CHGCAR CHGCAR
+ln -s ../scf/WAVECAR WAVECAR
+```
+
+Record completed VASP outputs under
+`raw_data/calculations/<system_slug>/<case_slug>/`. After analysis, validated
+plot-ready `.dat` files and figures may be promoted to `formal_data` only after
+explicit user approval and a manifest entry.
+
+This path is for the local research project. On clusters, do not create a
+second `raw_data/` tree: keep outputs in the calculation case, write processed
+data/figures/reports under `<case_root>/analysis/`, and summarize paths and
+conclusions in `<cluster_project_root>/docs/project_summary.md`.

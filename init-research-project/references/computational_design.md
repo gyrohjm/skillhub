@@ -15,6 +15,17 @@ Use this reference when project mode is `computational` or `hybrid`.
 - Run convergence tests on quantities that affect the scientific claim, not only total energy.
 - Define a minimal baseline, controlled variants, and validation references.
 - Estimate task count, storage, wall time, and restart requirements before production execution.
+- For VASP projects, define the whole downstream parameter envelope before
+  production: relax, SCF, band, DOS, phonon, and any charge-density or
+  wavefunction-reuse tasks must list inherited INCAR parameters, explicit
+  overrides, KPOINTS policy, POTCAR labels, structure sources, resource profile,
+  and completion gates. Later stages may proceed only if they remain inside
+  this reviewed envelope.
+- For VASP downstream electronic tasks, reuse SCF `CHGCAR` and `WAVECAR` with
+  symbolic links rather than copies.
+- Keep the local `raw_data/formal_data` lifecycle separate from cluster storage.
+  Cluster VASP projects should process data under each source case's `analysis/`
+  tree and maintain only `docs/project_summary.md` at project level.
 
 ## Validation
 

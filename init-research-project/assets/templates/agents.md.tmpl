@@ -1,16 +1,35 @@
-# AGENTS.md
+# {{AGENT_CONTEXT_FILENAME}}
+
+This file is the short agent entrypoint for Codex, Claude, and other AI coding
+agents working in this project. Keep detailed research context in
+`PROJECT_CONTEXT.md` and detailed plans under `docs/plans/`.
 
 ## Source of Truth
 
 Read `PROJECT_CONTEXT.md` and the relevant files under `docs/` before planning or changing scientific work.
+Use `docs/plans/` for plans and `docs/records/` for decisions and task logs.
 
 ## Operating Rules
 
 - Preserve `raw_data`; never edit source data in place.
+- Store calculation raw data as `raw_data/calculations/<system_slug>/<case_slug>/`.
+- Keep pre-relax and post-relax structures in raw data first; copy structures to `formal_data/structures/<system_slug>/` only after explicit approval.
 - Put reproducible transformations in `code/`.
 - Do not copy an artifact into `formal_data` without explicit user approval and a manifest entry.
 - Keep directory and generated file names in English `lowercase_snake_case`.
 - Distinguish evidence, assumptions, hypotheses, and conclusions.
 - Do not silently change scientific parameters, exclusions, controls, or validation criteria.
-- Record consequential scientific decisions in `docs/decisions.md`.
+- Record consequential scientific decisions in `docs/records/decisions.md`.
 - Update `PROJECT_CONTEXT.md` when scope or acceptance criteria change.
+
+## VASP Skill Handoff
+
+- Use `vasp-workflow` for the running/orchestration layer: plan VASP calculation chains, prepare POSCAR/INCAR/KPOINTS/POTCAR/job.sh, generate submit reviews, submit Slurm jobs, create automation scripts, continue relax runs, orchestrate relax/SCF/band/DOS/phonon stages, and perform bounded recovery. It owns running workflow state such as `task_spec.json`, `state.json`, `submission_review.dat`, queue logs, and automation files.
+- Use `vasp-work-manager` for the records/archive layer after a task exists: register existing tasks, record status and notes, maintain the ledger, archive calculation directories, generate manifests and SHA256 checksums, verify archives, update the project summary, and plan cleanup from recorded evidence. It must not submit jobs, recover Slurm/VASP failures, or change scientific inputs.
+- Use `vasp-analysis` only after outputs exist: extract validated plot-ready `.dat` files, generate figures, write analysis reports, interpret completed outputs, and propose next calculations. It must not submit jobs, register ledger records, or decide archive retention.
+- On clusters, managed VASP work should live under `/home/<user>/projects/<short_english_project_slug>/`; if this local project name is Chinese, translate it to a short English `lowercase_snake_case` slug before creating cluster directories.
+- Do not recreate this project's `raw_data/` or `formal_data/` tree on the cluster. Keep VASP outputs in their source case, process/plot under that case's `analysis/` directory, and summarize report/figure paths and conclusions in the cluster project's `docs/project_summary.md`.
+- Before production VASP runs, define the downstream parameter envelope in `docs/plans/computation_plan.md`: relax, SCF, band, DOS, phonon, and other expected follow-up stages must list their inherited INCAR settings, explicit overrides, KPOINTS policy, POTCAR labels, structure source, resource profile, and completion gate.
+- After relax convergence, SCF and downstream tasks may proceed inside that pre-reviewed envelope without asking for a new scientific decision. If any INCAR/KPOINTS/POTCAR/structure/resource choice falls outside the envelope, stop and ask for review.
+- Keep `relax/POSCAR-ini` as the initial approved geometry. For unconverged relax continuation, preserve each attempt's `OUTCAR` and `CONTCAR` before copying `CONTCAR` to `POSCAR`.
+- When downstream tasks reuse SCF `CHGCAR` or `WAVECAR`, create symbolic links (`ln -s`) rather than copying the files.
