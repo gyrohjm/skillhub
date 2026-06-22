@@ -1,36 +1,36 @@
 # {{PROJECT_NAME}}
 
-**Project slug / 项目标识:** `{{PROJECT_SLUG}}`  
-**Mode / 类型:** `{{MODE}}`  
-**Domain / 领域:** {{DOMAIN}}
+- **项目标识：** `{{PROJECT_SLUG}}`
+- **类型：** `{{MODE}}`
+- **领域：** {{DOMAIN}}
 
-## Goal / 项目目标
+## 项目目标
 
 {{SUMMARY}}
 
-## Project Structure / 项目结构
+## 目录结构
 
-- `docs/literature/`: papers, source notes, and reading queue.
-- `docs/plans/`: research, computation, experiment, milestone, and risk plans.
-- `docs/records/`: decisions and task execution logs.
-- `code/`: reusable source code, scripts, notebooks, tests, and configuration.
-- `raw_data/calculations/<system_slug>/<case_slug>/`: immutable calculation inputs, outputs, pre-relax structures, and post-relax structures grouped by system and case.
-- `raw_data/`: immutable source data and explicitly marked intermediate data.
-- `formal_data/structures/<system_slug>/`: only user-approved reusable structures.
-- `formal_data/`: validated, user-approved, publication-ready artifacts with provenance.
+- `docs/literature/`：论文、来源笔记和阅读队列。
+- `docs/plans/`：科研、计算、实验、里程碑和风险计划。
+- `docs/records/`：决策与任务日志。每次实质状态变化后更新
+  `task_logs/project_log.md` 和当日日志，并在每天结束前完成收尾。
+- `code/`：可复用源码、脚本、notebook、测试和配置。
+- `raw_data/calculations/<system_slug>/<case_slug>/`：按体系和 case 保存原始计算输入、输出及优化前后结构。
+- `raw_data/`：不可修改的来源数据和明确标记的中间数据。
+- `formal_data/structures/<system_slug>/`：仅保存用户批准的可复用结构。
+- `formal_data/`：经过验证、批准并带 provenance 的正式产物。
 
-## Data Rule / 数据规则
+## 数据规则
 
 ```text
 raw_data -> code processing -> validation -> user approval -> formal_data
 ```
 
-Read `PROJECT_CONTEXT.md` before changing research scope or scientific assumptions.
-For VASP projects, define the relax/SCF/band/DOS/phonon parameter envelope in
-`docs/plans/computation_plan.md` before production runs and follow
-`AGENTS.md`/`CLAUDE.md`: use `vasp-workflow` for running/orchestration,
-`vasp-work-manager` for records/archive/verification, and `vasp-analysis` for
-completed-output data processing, figures, reports, and recommendations.
-The `raw_data/formal_data` lifecycle belongs to this local project. On clusters,
-keep outputs and `analysis/` products inside each source case and maintain only
-a concise project-level `docs/project_summary.md` index.
+修改科研范围或科学假设前先阅读 `PROJECT_CONTEXT.md`。VASP 项目生产运行前，
+在 `docs/plans/computation_plan.md` 和 `docs/plans/calculation_design.json`
+中定义并批准计算矩阵。使用 `computation-design` 负责科学设计，
+`vasp-workflow` 负责运行编排，`vasp-work-manager` 负责记录归档，
+`vasp-analysis` 负责输出处理和解释。
+
+本地项目使用 `raw_data/formal_data` 生命周期；集群输出与 `analysis/` 产物保留在
+来源 case，项目级只维护精简的 `docs/project_summary.md` 索引。

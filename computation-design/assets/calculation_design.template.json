@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "design_id": "project_computation",
+  "revision": 1,
+  "status": "draft",
+  "project_slug": "project",
+  "title": "计算实验设计",
+  "research_questions": [
+    {"id": "Q1", "question": "待补充"}
+  ],
+  "hypotheses": [
+    {"id": "H1", "statement": "待补充", "falsification": "待补充"}
+  ],
+  "systems": [
+    {
+      "system_slug": "system",
+      "model": "待补充",
+      "structure_provenance": "待补充",
+      "assumptions": []
+    }
+  ],
+  "observables": [
+    {
+      "id": "O1",
+      "hypothesis_ids": ["H1"],
+      "quantity": "待补充",
+      "decision_rule": "待补充",
+      "uncertainty_target": "待补充"
+    }
+  ],
+  "controls": [
+    {"id": "C1", "type": "baseline", "purpose": "待补充", "fixed_or_varied": "待补充"}
+  ],
+  "convergence_studies": [
+    {
+      "id": "CV1",
+      "parameter": "待补充",
+      "candidate_values": [],
+      "fixed_conditions": [],
+      "target_observable_ids": ["O1"],
+      "acceptance_rule": "待补充",
+      "selected_value": null
+    }
+  ],
+  "validation_checks": [
+    {"id": "V1", "type": "independent_reference", "reference": "待补充", "acceptance_rule": "待补充"}
+  ],
+  "calculation_matrix": [
+    {
+      "id": "M1",
+      "class": "exploratory",
+      "system_slug": "system",
+      "case_slug": "exploratory_case",
+      "hypothesis_ids": ["H1"],
+      "purpose": "待补充",
+      "variables": {},
+      "fixed_parameters": {},
+      "stages": ["relax"],
+      "observable_ids": ["O1"],
+      "completion_gate": "待补充"
+    }
+  ],
+  "vasp_stage_envelopes": [
+    {
+      "matrix_id": "M1",
+      "structure_source": "待补充",
+      "incar_policy": "待补充",
+      "kpoints_policy": "待补充",
+      "potcar_labels": {},
+      "resource_profile": "待补充",
+      "completion_gates": {"relax": "待补充"}
+    }
+  ],
+  "evidence": [
+    {"id": "E1", "claim": "待补充", "source": "待补充", "kind": "primary_source", "status": "pending", "supports": ["H1"]}
+  ],
+  "uncertainty_budget": [],
+  "resource_budget": {"task_count": "待补充", "compute": "待补充", "storage": "待补充"},
+  "stop_conditions": ["待补充"],
+  "pending_decisions": ["完成科学设计后再提交审核"]
+}

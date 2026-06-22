@@ -22,6 +22,9 @@ COLUMNS = [
     "parse_status",
     "review_status",
     "review_note",
+    "design_id",
+    "design_revision",
+    "design_matrix_id",
     "notes",
     "source_path",
     "archive_path",
@@ -46,6 +49,10 @@ def rows(conn: sqlite3.Connection, project: str | None = None) -> list[dict[str,
     if project:
         where = "WHERE p.name = ?"
         params.append(project)
+    task_columns = {row["name"] for row in conn.execute("PRAGMA table_info(tasks)")}
+    design_id_expr = "t.design_id" if "design_id" in task_columns else "NULL"
+    design_revision_expr = "t.design_revision" if "design_revision" in task_columns else "NULL"
+    design_matrix_expr = "t.design_matrix_id" if "design_matrix_id" in task_columns else "NULL"
     query = f"""
         SELECT
             p.name AS project,
@@ -57,6 +64,9 @@ def rows(conn: sqlite3.Connection, project: str | None = None) -> list[dict[str,
             t.parse_status,
             t.review_status,
             t.review_note,
+            {design_id_expr} AS design_id,
+            {design_revision_expr} AS design_revision,
+            {design_matrix_expr} AS design_matrix_id,
             t.notes,
             t.source_path,
             t.archive_path,
@@ -80,7 +90,15 @@ def rows(conn: sqlite3.Connection, project: str | None = None) -> list[dict[str,
         GROUP BY t.id
         ORDER BY p.name, t.name
     """
-    return [{key: row[key] for key in row.keys()} for row in conn.execute(query, params)]
+    result = [{key: row[key] for key in row.keys()} for row in conn.execute(query, params)]
+    for item in result:
+        parts = [
+            str(value)
+            for value in (item.get("design_id"), item.get("design_revision"), item.get("design_matrix_id"))
+            if value not in (None, "")
+        ]
+        item["design_summary"] = " / ".join(parts)
+    return result
 
 
 def write_csv(data: list[dict[str, Any]], output: Path | None) -> None:
@@ -111,8 +129,8 @@ def write_markdown(data: list[dict[str, Any]], output: Path | None, project: str
     lines = [
         f"# {project or 'VASP'} Project Summary",
         "",
-        "| task | state | source_case | analysis_files | archive | review | conclusion/notes |",
-        "|---|---|---|---|---|---|---|",
+        "| task | state | design | source_case | analysis_files | archive | review | conclusion/notes |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for item in data:
         lines.append(
@@ -122,6 +140,7 @@ def write_markdown(data: list[dict[str, Any]], output: Path | None, project: str
                 for key in (
                     "task",
                     "task_state",
+                    "design_summary",
                     "source_path",
                     "analysis_files",
                     "archive_path",

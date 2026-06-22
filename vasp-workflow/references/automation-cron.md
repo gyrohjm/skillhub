@@ -17,6 +17,9 @@ and submits approved stages.
 ## Safety Model
 
 - Approve the dependency graph before automation starts.
+- Approve the relevant calculation-matrix scope with `computation-design` and
+  preserve its provenance in each production stage. Automation blocks a stage
+  whose `task_spec.json`/`state.json` is exploratory or untracked.
 - Approve scientific parameters, POTCAR choices, structure sources, and resource
   envelopes before the first automated submit.
 - Built-in relax defaults may be prefilled (`EDIFF=1E-6`, `EDIFFG=-0.01`,

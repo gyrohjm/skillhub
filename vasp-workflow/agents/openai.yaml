@@ -1,4 +1,4 @@
 interface:
   display_name: "VASP Workflow"
   short_description: "Run and orchestrate VASP calculation workflows"
-  default_prompt: "Use $vasp-workflow to plan and run VASP workflows: research structures, prepare inputs, review submissions, submit Slurm jobs, automate stages, handle bounded recovery, and hand records to the archive layer."
+  default_prompt: "Use $vasp-workflow to prepare and run VASP tasks from an approved $computation-design scope, review inputs and resources, submit Slurm jobs, automate stages, handle bounded recovery, and hand records to the archive layer."

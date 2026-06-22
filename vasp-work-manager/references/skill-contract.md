@@ -1,14 +1,16 @@
 # VASP Skill Contract
 
-Use these ownership boundaries. In short, `vasp-workflow` owns the
-running/orchestration layer, `vasp-work-manager` owns the records/archive layer,
-and `vasp-analysis` owns completed-output scientific analysis.
+Use these ownership boundaries. In short, `computation-design` owns scientific
+experiment design and approval, `vasp-workflow` owns running/orchestration,
+`vasp-analysis` owns completed-output scientific analysis and change evidence,
+and `vasp-work-manager` owns records/archive.
 
 | Skill | Owns | Must not do | Handoff |
 |---|---|---|---|
+| `computation-design` | Falsifiable hypotheses, observables, controls, convergence/validation rules, calculation matrices, uncertainty/resources/stopping rules, versioned scientific approvals. | Generate VASP inputs, submit jobs, analyze outputs, or write archive records. | Approved matrix scopes go to `vasp-workflow`; analysis change requests return here for a new revision. |
 | `vasp-workflow` | Running/orchestration: case trees, task directories, `POSCAR`/`INCAR`/`KPOINTS`/`POTCAR`/`job.sh`, `task_spec.json`, `state.json`, `submission_review.dat`, submit/queue logs, dependency handoff, bounded recovery, cron/watch plans. | Long-term archive ledger, cleanup decisions, plot extraction, figures, interpretation reports. | Completed/failed task records go to `vasp-work-manager`; completed-output analysis goes to `vasp-analysis`. |
-| `vasp-work-manager` | Records/archive: import/register existing tasks into the lightweight ledger, write notes/review status/events, create immutable archive versions, manifests, `SHA256SUMS`, file records, project summaries, reports, and verification results. | Generate or change VASP scientific inputs, submit/recover jobs, call cluster resources, parse data into new scientific `.dat` arrays, interpret physical meaning. | Missing or invalid task setup goes to `vasp-workflow`; missing plot data or interpretation goes to `vasp-analysis`. |
-| `vasp-analysis` | Data processing and analysis: extract validated plot-ready `.dat`, create figures, write reports, interpret completed outputs, and propose next calculations. | Submit jobs, mutate calculation inputs, register ledger records, decide archive retention or cleanup. | New calculations go to `vasp-workflow`; durable preservation of outputs/reports goes to `vasp-work-manager`. |
+| `vasp-work-manager` | Records/archive: import/register existing tasks into the lightweight ledger, write notes/review status/events, append local total/daily task-log entries when present, create immutable archive versions, manifests, `SHA256SUMS`, file records, project summaries, reports, and verification results. | Generate or change VASP scientific inputs, submit/recover jobs, call cluster resources, parse data into new scientific `.dat` arrays, interpret physical meaning. | Missing or invalid task setup goes to `vasp-workflow`; missing plot data or interpretation goes to `vasp-analysis`. |
+| `vasp-analysis` | Data processing and analysis: extract validated plot-ready `.dat`, create figures, write reports, interpret completed outputs, and propose design changes. | Submit jobs, mutate calculation inputs, register ledger records, decide archive retention or cleanup. | New calculations return to `computation-design`; durable preservation of outputs/reports goes to `vasp-work-manager`. |
 
 Do not let one skill silently cross into another skill's ownership. It is fine
 to write a handoff note, next-task block, or archive request, but the receiving
@@ -44,6 +46,7 @@ queue.log
 queue/* markers
 workers/*/submit.slurm
 jobs/*/POSCAR INCAR KPOINTS POTCAR OUTCAR OSZICAR vasp.out vasp.err
+design/<design_id>/rNNNN/calculation_design.json computation_plan.md approval.json
 ```
 
 Archive analysis outputs with:
@@ -55,6 +58,7 @@ analysis/figures/*.png
 analysis/figures/*.pdf
 analysis/plot_manifest.json
 analysis/reports/*.md
+analysis/reports/design_change_request.json
 ```
 
 Treat `.dat` as the primary numeric plotting format. Keep JSON for state and

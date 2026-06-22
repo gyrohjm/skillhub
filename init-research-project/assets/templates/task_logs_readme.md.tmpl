@@ -1,0 +1,32 @@
+# 任务日志规范
+
+本目录保存简洁、可核查的执行记录。它补充 `docs/records/decisions.md`，不替代
+科学决策、VASP workflow state 或 manager ledger。
+
+## 文件
+
+- `project_log.md`：项目累计总日志。每次实质任务状态变化后追加一行。
+- `daily/YYYY-MM-DD.md`：当日日志。工作过程中持续更新，每天结束前完成收尾。
+  如果当日日志不存在，在首次记录前按已初始化日志中的“执行记录”和“当日收尾”格式创建。
+
+## 必须记录的事件
+
+以下事件发生后，同时更新总日志和当日日志：
+
+- 项目或设计初始化、设计批准或 revision；
+- VASP 任务准备、submit review、提交、完成、失败或有限恢复；
+- 创建分析报告或 design change request；
+- manager 登记、归档、SHA256 校验或状态更新；
+- 任务阻塞、范围变化、科学参数变化或 skill handoff。
+
+## 当日收尾
+
+每天工作结束前记录已完成、进行中或阻塞、决策、产物路径和下一项具体动作。
+当天没有实质工作时，写一条简短的“无变化”，不得虚构活动。
+
+## 记录规则
+
+- 记录时间、执行者、任务或 case、操作、状态、证据/产物路径和下一步。
+- 相关时标明 `task_spec.json`、`submission_review.dat`、design revision、报告、archive 或 ledger event。
+- 只记录安全 metadata，不把 POTCAR 内容、secret 或大体积原始输出复制到 Markdown。
+- 事实与解释分开。重要科学选择写入 `docs/records/decisions.md`，数值解释写入分析报告。

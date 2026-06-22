@@ -1,4 +1,4 @@
 interface:
   display_name: "VASP Records & Archive"
   short_description: "Record, archive, and verify existing VASP tasks without submitting jobs"
-  default_prompt: "Use $vasp-work-manager to register existing VASP tasks, record status, archive preserved files, verify checksums, and update the project summary. Do not submit jobs, recover runs, or change scientific inputs."
+  default_prompt: "Use $vasp-work-manager to register existing VASP tasks, preserve $computation-design snapshots and approvals, archive files, verify checksums, and update the project summary. Do not submit jobs, recover runs, or change scientific inputs."

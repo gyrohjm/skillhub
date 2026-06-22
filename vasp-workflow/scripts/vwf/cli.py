@@ -207,6 +207,156 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def verify_design_approval(
+    approval_path: Path,
+    matrix_id: str,
+    stage: str,
+    case_meta: dict[str, Any],
+) -> dict[str, Any]:
+    approval_path = approval_path.expanduser().resolve()
+    if not approval_path.is_file():
+        raise FileNotFoundError(f"scientific design approval does not exist: {approval_path}")
+    approval = load_json(approval_path)
+    required = {
+        "schema_version",
+        "approval_type",
+        "status",
+        "design_id",
+        "revision",
+        "scope",
+        "reviewer",
+        "approved_at",
+        "design_file",
+        "design_sha256",
+        "computation_plan_file",
+        "computation_plan_sha256",
+    }
+    missing = sorted(required - set(approval))
+    if missing:
+        raise ValueError(f"scientific design approval is missing fields: {missing}")
+    if (
+        approval["schema_version"] != 1
+        or approval["approval_type"] != "scientific_design"
+        or approval["status"] != "approved"
+    ):
+        raise ValueError("scientific design approval header is invalid")
+    if not isinstance(approval["scope"], list) or not approval["scope"]:
+        raise ValueError("scientific design approval scope must be a non-empty list")
+    if matrix_id not in approval["scope"]:
+        raise ValueError(f"design matrix {matrix_id!r} is not in approved scope {approval['scope']}")
+
+    design_name = Path(str(approval["design_file"]))
+    plan_name = Path(str(approval["computation_plan_file"]))
+    if design_name.name != str(design_name) or plan_name.name != str(plan_name):
+        raise ValueError("scientific design snapshot file names must not contain directories")
+    design_path = approval_path.parent / design_name
+    plan_path = approval_path.parent / plan_name
+    if sha256_file(design_path) != approval["design_sha256"]:
+        raise ValueError("scientific design JSON hash does not match approval")
+    if sha256_file(plan_path) != approval["computation_plan_sha256"]:
+        raise ValueError("scientific computation plan hash does not match approval")
+    design = load_json(design_path)
+    if design.get("design_id") != approval["design_id"] or design.get("revision") != approval["revision"]:
+        raise ValueError("scientific design ID or revision does not match approval")
+    if design.get("status") != "ready_for_review":
+        raise ValueError("approved scientific design snapshot must have status ready_for_review")
+    matrix = next((item for item in design.get("calculation_matrix", []) if item.get("id") == matrix_id), None)
+    if matrix is None:
+        raise ValueError(f"approved scientific design does not contain matrix {matrix_id!r}")
+    if stage not in matrix.get("stages", []):
+        raise ValueError(f"stage {stage!r} is not listed for design matrix {matrix_id!r}")
+    expected_system = case_meta.get("system_slug")
+    expected_case = case_meta.get("case_slug")
+    if expected_system and matrix.get("system_slug") != expected_system:
+        raise ValueError(
+            f"design matrix system_slug {matrix.get('system_slug')!r} does not match requested {expected_system!r}"
+        )
+    if expected_case and matrix.get("case_slug") != expected_case:
+        raise ValueError(f"design matrix case_slug {matrix.get('case_slug')!r} does not match requested {expected_case!r}")
+    return {
+        "status": "approved",
+        "scientific_design_approved": True,
+        "design_id": approval["design_id"],
+        "design_revision": approval["revision"],
+        "matrix_id": matrix_id,
+        "task_class": matrix.get("class"),
+        "design_sha256": approval["design_sha256"],
+        "computation_plan_sha256": approval["computation_plan_sha256"],
+        "approval_sha256": sha256_file(approval_path),
+        "approval_source": str(approval_path),
+        "design_source": str(design_path.resolve()),
+        "computation_plan_source": str(plan_path.resolve()),
+    }
+
+
+def resolve_design_provenance(args: argparse.Namespace, stage: str, case_meta: dict[str, Any]) -> dict[str, Any]:
+    approval_path = getattr(args, "design_approval", None)
+    matrix_id = getattr(args, "design_task", None)
+    if bool(approval_path) != bool(matrix_id):
+        raise ValueError("--design-approval and --design-task must be provided together")
+    if not approval_path:
+        return {
+            "status": "exploratory_untracked",
+            "scientific_design_approved": False,
+            "note": "CLI-compatible exploratory task; do not auto-advance to production without computation-design approval",
+        }
+    return verify_design_approval(approval_path, matrix_id, stage, case_meta)
+
+
+def snapshot_design_review(case_root: Path, provenance: dict[str, Any]) -> dict[str, Any]:
+    if not provenance.get("scientific_design_approved"):
+        return provenance
+    destination = (
+        case_root
+        / "design"
+        / str(provenance["design_id"])
+        / f"r{int(provenance['design_revision']):04d}"
+    )
+    destination.mkdir(parents=True, exist_ok=True)
+    sources = {
+        "calculation_design.json": Path(provenance["design_source"]),
+        "computation_plan.md": Path(provenance["computation_plan_source"]),
+        "approval.json": Path(provenance["approval_source"]),
+    }
+    for name, source in sources.items():
+        target = destination / name
+        if target.exists():
+            if sha256_file(target) != sha256_file(source):
+                raise ValueError(f"conflicting immutable scientific design snapshot: {target}")
+            continue
+        shutil.copy2(source, target)
+    result = dict(provenance)
+    result["case_snapshot"] = str(destination)
+    return result
+
+
+def record_design_in_workflow(case_root: Path, provenance: dict[str, Any]) -> None:
+    if not provenance.get("scientific_design_approved"):
+        return
+    workflow_path = case_root / "workflow.json"
+    workflow = load_json(workflow_path) if workflow_path.exists() else {
+        "schema_version": 1,
+        "case_root": str(case_root),
+        "created_at": now_iso(),
+    }
+    records = workflow.setdefault("scientific_designs", [])
+    record = {
+        key: provenance[key]
+        for key in (
+            "design_id",
+            "design_revision",
+            "matrix_id",
+            "task_class",
+            "design_sha256",
+            "approval_sha256",
+            "case_snapshot",
+        )
+    }
+    if record not in records:
+        records.append(record)
+    atomic_write_json(workflow_path, workflow)
+
+
 def validate_slug(name: str, value: str | None) -> str | None:
     if value is None:
         return None
@@ -1059,6 +1209,9 @@ def prepare_standard(args: argparse.Namespace) -> int:
     if task_dir.exists() and any(task_dir.iterdir()) and not args.overwrite:
         raise FileExistsError(f"task directory is not empty; pass --overwrite to replace generated inputs: {task_dir}")
 
+    design_provenance = resolve_design_provenance(args, kind, case_meta)
+    design_provenance = snapshot_design_review(case_root, design_provenance)
+
     poscar_src, poscar_source_label = find_structure_source(kind, case_root, args.source_poscar, args.source_dir)
     potcar_src, potcar_meta = resolve_potcar(args, poscar_src, task_dir)
 
@@ -1166,6 +1319,7 @@ def prepare_standard(args: argparse.Namespace) -> int:
         "incar_defaults": incar_default_metadata(kind, args, used_builtin_incar),
         "resources": resources,
         "resource_hash": resource_hash(resources, 1),
+        "design_provenance": design_provenance,
         "created_at": now_iso(),
     }
     if stage_from_records:
@@ -1175,6 +1329,7 @@ def prepare_standard(args: argparse.Namespace) -> int:
     if kind in {"band", "dos"}:
         task_spec["dependency"] = "electronic/scf CHGCAR/WAVECAR unless overridden"
     atomic_write_json(task_dir / "task_spec.json", task_spec)
+    record_design_in_workflow(case_root, design_provenance)
     print(f"[ok] prepared {kind}: {task_dir}")
     print(f"[next] run: python -m vwf review submit --taskset {task_dir}")
     return 0
@@ -1432,6 +1587,19 @@ def stage_has_approval(case_root: Path, stage: dict[str, Any]) -> bool:
     if payload.get("resource_hash") != stage_current_resource_hash(stage_root):
         return False
     return True
+
+
+def stage_has_scientific_design(case_root: Path, stage: dict[str, Any]) -> bool:
+    stage_root = case_root / str(stage.get("path", "."))
+    metadata_path = stage_root / (STATE_NAME if (stage_root / STATE_NAME).exists() else "task_spec.json")
+    if not metadata_path.is_file():
+        return False
+    try:
+        metadata = load_json(metadata_path)
+    except Exception:
+        return False
+    provenance = metadata.get("design_provenance")
+    return bool(isinstance(provenance, dict) and provenance.get("scientific_design_approved"))
 
 
 def stage_complete(case_root: Path, stage: dict[str, Any]) -> bool:
@@ -1817,6 +1985,10 @@ def automation_tick(args: argparse.Namespace) -> int:
             block(stage, "missing review, matching stage approval, or workflow preapproval")
             changed = True
             continue
+        if not stage_has_scientific_design(case_root, stage):
+            block(stage, "automatic production submission requires an approved computation-design scope")
+            changed = True
+            continue
         command = str(stage["submit_command"])
         stage_cwd = case_root / str(stage.get("path", "."))
         print(f"[submit] {stage['name']}: {command}")
@@ -2017,6 +2189,9 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
     case_root, case_meta = resolve_case_root(args)
     source = find_source_dir(case_root, args.source_dir)
     taskset = case_taskset_path(case_root, args.taskset)
+    design_provenance = resolve_design_provenance(args, "phonon-fd", case_meta)
+    design_provenance = snapshot_design_review(case_root, design_provenance)
+
     if taskset.exists() and not args.overwrite:
         raise FileExistsError(f"taskset already exists; pass --overwrite to replace: {taskset}")
     if taskset.exists():
@@ -2110,6 +2285,7 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
         "workers": args.workers,
         "resources": resources,
         "resource_hash": resource_hash(resources, args.workers),
+        "design_provenance": design_provenance,
         "created_at": now_iso(),
         "updated_at": now_iso(),
         "jobs": jobs,
@@ -2125,9 +2301,11 @@ def prepare_phonon_fd(args: argparse.Namespace) -> int:
         "input_hashes": hashes,
         "workers": args.workers,
         "resources": resources,
+        "design_provenance": design_provenance,
         "created_at": now_iso(),
     }
     atomic_write_json(taskset / "task_spec.json", task_spec)
+    record_design_in_workflow(case_root, design_provenance)
     log_queue(taskset, f"prepared {len(jobs)} displacement jobs with {args.workers} workers")
     print(f"[ok] prepared {len(jobs)} displacement jobs -> {taskset}")
     print(f"[next] run: python -m vwf review submit --taskset {taskset}")
@@ -2138,6 +2316,7 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
     input_dir = taskset / "input"
     hashes = current_input_hashes(taskset)
     resources = state["resources"]
+    design = state.get("design_provenance", {})
     incar_path = input_dir / "INCAR.fd"
     lines = [
         "# vasp_workflow_submission_review = 1",
@@ -2149,6 +2328,17 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
         f"case_slug = {state.get('case_slug') or 'unknown'}",
         f"cluster = {state.get('cluster') or 'unknown'}",
         f"case_root_source = {state.get('case_root_source') or 'unknown'}",
+        "",
+        "[scientific_design]",
+        f"status = {design.get('status', 'exploratory_untracked')}",
+        f"approved = {str(bool(design.get('scientific_design_approved'))).lower()}",
+        f"design_id = {design.get('design_id', '')}",
+        f"design_revision = {design.get('design_revision', '')}",
+        f"matrix_id = {design.get('matrix_id', '')}",
+        f"design_sha256 = {design.get('design_sha256', '')}",
+        f"approval_sha256 = {design.get('approval_sha256', '')}",
+        f"case_snapshot = {design.get('case_snapshot', '')}",
+        "scientific_design_approval_does_not_authorize_sbatch = true",
         "",
         "[inputs]",
         f"POSCAR.source = {state['input_sources'].get('POSCAR', 'unknown')}",
@@ -2199,6 +2389,7 @@ def build_submission_review(taskset: Path, state: dict[str, Any]) -> str:
 def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) -> str:
     hashes = standard_hashes(task_dir)
     resources = task_spec.get("resources", {})
+    design = task_spec.get("design_provenance", {})
     lines = [
         "# vasp_workflow_submission_review = 1",
         f"generated_at = {now_iso()}",
@@ -2211,6 +2402,18 @@ def build_standard_submission_review(task_dir: Path, task_spec: dict[str, Any]) 
         f"case_slug = {task_spec.get('case_slug') or 'unknown'}",
         f"cluster = {task_spec.get('cluster') or 'unknown'}",
         f"case_root_source = {task_spec.get('case_root_source') or 'unknown'}",
+        "",
+        "[scientific_design]",
+        f"status = {design.get('status', 'exploratory_untracked')}",
+        f"approved = {str(bool(design.get('scientific_design_approved'))).lower()}",
+        f"design_id = {design.get('design_id', '')}",
+        f"design_revision = {design.get('design_revision', '')}",
+        f"matrix_id = {design.get('matrix_id', '')}",
+        f"task_class = {design.get('task_class', '')}",
+        f"design_sha256 = {design.get('design_sha256', '')}",
+        f"approval_sha256 = {design.get('approval_sha256', '')}",
+        f"case_snapshot = {design.get('case_snapshot', '')}",
+        "scientific_design_approval_does_not_authorize_sbatch = true",
         "",
         "[inputs]",
         f"POSCAR.source = {task_spec.get('input_sources', {}).get('POSCAR', 'unknown')}",
@@ -2555,6 +2758,20 @@ def add_resource_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--vasp-cmd", default=None)
 
 
+def add_design_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--design-approval",
+        type=Path,
+        default=None,
+        help="Hash-locked computation-design approval.json for a production task.",
+    )
+    parser.add_argument(
+        "--design-task",
+        default=None,
+        help="Calculation-matrix ID in the approved scientific design scope.",
+    )
+
+
 def add_standard_prepare_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser], kind: str) -> None:
     parser = subparsers.add_parser(kind)
     add_case_args(parser)
@@ -2583,6 +2800,7 @@ def add_standard_prepare_parser(subparsers: argparse._SubParsersAction[argparse.
     parser.add_argument("--magmom", default=None, help="MAGMOM line used by magnetic INCAR presets.")
     parser.add_argument("--stage-from", type=parse_stage_from, action="append", default=[])
     parser.add_argument("--overwrite", action="store_true")
+    add_design_args(parser)
     add_resource_args(parser)
     parser.set_defaults(func=prepare_standard, task_kind=kind)
 
@@ -2613,6 +2831,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_fd.add_argument("--copy-source-incar", action="store_true")
     p_fd.add_argument("--mock-displacements", type=int, default=0)
     p_fd.add_argument("--overwrite", action="store_true")
+    add_design_args(p_fd)
     p_fd.set_defaults(func=prepare_phonon_fd)
 
     p_review = sub.add_parser("review")

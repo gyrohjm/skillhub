@@ -2,29 +2,53 @@
 
 Use this template before generating a PPT from user-provided material. Keep the deck outline and the expanded per-slide content in this same markdown file.
 
+If a `talk_plan.md` from `sci-talk-planning` is available, import its
+narrative arc, claim-evidence matrix, material priorities, audience
+profile, and handoff fields into sections 1-3 below. Do not re-derive
+narrative-level decisions that the talk plan already settled. If no talk
+plan exists, fill these sections from user input.
+
 ## 1. Source Inventory
 
-| Source | Role | Notes |
-|---|---|---|
-| `<path or filename>` | lecture / exercise / figure / notebook / reference deck | `<what content it provides>` |
+<!-- IF talk_plan.md exists: import its §6 Material Priorities table here.
+     Keep only slide-relevant assignments (source, type, priority, planned slide use).
+     Do not re-derive material priorities. -->
+<!-- IF no talk_plan.md: inventory sources from user-provided material. -->
+
+| Source | Role | Priority | Planned slide use | Notes |
+|---|---|---|---|---|
+| `<path or filename>` | lecture / exercise / figure / notebook / reference deck | essential / supporting / cuttable | `<slide role or omitted>` | `<what content it provides>` |
 
 ## 2. Deck Mode And Scope
 
-- Deck mode: research report / classroom lecture / review / exercise-session / single-topic / targeted edit.
-- Target audience: research group meeting / classroom lecture / course review / exercise class / thesis defense.
-- Language: Chinese by default / English if explicitly requested / user-specified language.
-- Report topic:
-- Date:
-- Presenter:
-- Expected slide count:
+<!-- IF talk_plan.md exists: copy from its §1 Talk Metadata and §8 Handoff fields.
+     Do not re-derive audience, time budget, or narrative arc. -->
+<!-- IF no talk_plan.md: determine from user input. -->
+
+- Deck mode: `<from talk_plan §8 recommended_deck_mode, or user input>`
+- Talk type: `<from talk_plan §1 talk_type, or user input>`
+- Target audience: `<from talk_plan §3 audience profile, or user input>`
+- Language: `<from talk_plan §1 language, or Chinese default>`
+- Report topic: `<from talk_plan §1 title, or user input>`
+- Presenter: `<from talk_plan §1 presenter, or placeholder>`
+- Date: `<from talk_plan §1 date, or placeholder>`
+- Expected slide count: `<from talk_plan §8 approx_slide_count, or user estimate>`
+- Talk duration: `<from talk_plan §1 duration, or user input>`
 - Generation route: `pptxgenjs` JavaScript + MathJax-rendered formula images.
 - Output PPTX path:
 - Generator script path:
 - Reference folder inventory path, if applicable:
+- Talk plan path, if applicable: `<path to talk_plan.md or none>`
 
-## 3. Deck Outline
+## 3. Slide Outline
 
-Write this section before expanding slide content. This is the first-pass structure of the deck and should remain in the same markdown document as the expanded plan.
+<!-- IF talk_plan.md exists: map its §4 Narrative Arc sections to specific slides.
+     Each talk-plan section becomes 1-N slides. Use the talk plan's claim-evidence
+     matrix (§5) to populate the Required evidence column. Do not re-derive the
+     narrative arc or restructure sections. -->
+<!-- IF no talk_plan.md: write the outline from user input, following the rules below. -->
+
+Write this section before expanding slide content. This is the first-pass slide-level structure of the deck and should remain in the same markdown document as the expanded plan.
 
 | Slide | Draft title | Main message | Required evidence / object | Planned visual count | Bottom conclusion |
 |---:|---|---|---|---:|---|
@@ -35,6 +59,8 @@ Write this section before expanding slide content. This is the first-pass struct
 
 Rules:
 
+- Map talk-plan sections to slides. Each section should produce 1-N slides depending on its time budget and density.
+- The talk plan's climax section should correspond to the strongest evidence slide.
 - Include a cover slide with report topic, date, and presenter unless the user explicitly asks for one inserted slide.
 - Include a PPT outline/storyline slide immediately after the cover unless explicitly exempted.
 - Include a final conclusion slide for every complete deck unless explicitly exempted.
@@ -85,7 +111,17 @@ Rules:
 
 ## 6. Knowledge Or Exercise Coverage
 
-For research reports:
+<!-- IF talk_plan.md exists: import its §5 Claim-Evidence Matrix here.
+     Do not re-derive claims, evidence, or strength ratings.
+     Add only the slide assignment column to map each claim to its slide. -->
+
+For research reports (with talk plan):
+
+| Claim (from talk plan) | Evidence (from talk plan) | Strength | Assigned slide | Omit or compress |
+|---|---|---|---|---|
+| `<takeaway from talk_plan §2>` | `<evidence from talk_plan §5>` | confirmed / preliminary / inferred / pending | `<slide number>` | `<low-priority details>` |
+
+For research reports (without talk plan):
 
 | Section | Must include | Evidence / figure / table | Omit or compress |
 |---|---|---|---|
@@ -97,7 +133,7 @@ For reference-folder group meeting decks:
 |---|---|---|---|
 | `<filename>` | paper / figure / note / data / prior slide | `<key fact, method, result, limitation>` | background / method / evidence / comparison / discussion |
 
-Claim-evidence map:
+Claim-evidence map (without talk plan):
 
 | Claim | Evidence source | Figure/table/formula | Confidence / caveat |
 |---|---|---|---|

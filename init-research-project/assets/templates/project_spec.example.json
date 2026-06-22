@@ -1,52 +1,52 @@
 {
-  "project_name": "钠插层石墨烯界面 / Na-intercalated graphene interface",
+  "project_name": "钠插层石墨烯界面",
   "project_slug": "na_intercalation_interface",
   "mode": "hybrid",
-  "domain": "computational materials science / 计算材料科学",
-  "summary": "Resolve how Na intercalation changes interface structure and electronic properties / 阐明钠插层对界面结构和电子性质的影响",
-  "background": "TBD / 待补充",
+  "domain": "计算材料科学",
+  "summary": "阐明 Na 插层对界面结构和电子性质的影响",
+  "background": "待补充",
   "research_questions": [
-    "Which intercalation sites are stable and experimentally plausible? / 哪些插层位点稳定且具有实验可实现性？"
+    "哪些插层位点稳定且具有实验可实现性？"
   ],
   "hypotheses": [
     {
       "id": "H1",
-      "statement": "Na intercalation decouples graphene from the substrate / 钠插层使石墨烯与衬底解耦",
-      "falsification": "No reproducible reduction in interface coupling observables / 界面耦合表征量没有可重复降低"
+      "statement": "Na 插层使 graphene 与 substrate 解耦",
+      "falsification": "interface coupling observable 没有可重复降低"
     }
   ],
   "objectives": [
     {
       "id": "O1",
-      "description": "Compare candidate Na sites under converged settings / 在收敛参数下比较候选钠位点",
-      "success_criteria": "All candidate structures use one validated calculation protocol / 所有候选结构使用同一套经验证的计算流程"
+      "description": "在收敛参数下比较候选 Na 位点",
+      "success_criteria": "所有候选结构使用同一套经验证的计算 protocol"
     }
   ],
-  "deliverables": ["validated structures", "publication-ready plot data"],
-  "constraints": ["TBD / 待补充"],
+  "deliverables": ["验证后的结构", "可用于论文的 plot data"],
+  "constraints": ["待补充"],
   "computation_plan": {
-    "models": ["Na-intercalated graphene interface candidate structures / 钠插层石墨烯界面候选结构"],
-    "methods": ["VASP PBE relax -> SCF -> band/DOS / VASP PBE 优化到静态与电子结构"],
-    "parameter_matrix": ["TBD convergence tests for ENCUT and KPOINTS / ENCUT 与 KPOINTS 收敛测试待定"],
+    "models": ["Na 插层 graphene interface 候选结构"],
+    "methods": ["VASP PBE relax -> SCF -> band/DOS"],
+    "parameter_matrix": ["ENCUT 与 KPOINTS 收敛测试待补充"],
     "vasp_workflow_envelope": [
       {
         "system_slug": "na_graphene_interface",
         "case_slug": "pbe_static_chain",
         "stages": ["relax", "scf", "band", "dos"],
-        "incar_inheritance": "SCF/band/DOS inherit reviewed electronic settings from the initial protocol unless listed in stage_overrides / 后续计算继承初始协议中的电子参数，除非在 stage_overrides 中列出",
+        "incar_inheritance": "SCF/band/DOS 继承初始 protocol 中已审核的电子参数，除非在 stage_overrides 中列出",
         "stage_overrides": {
           "scf": {"IBRION": -1, "NSW": 0, "LWAVE": ".TRUE.", "LCHARG": ".TRUE."}
         },
-        "kpoints_policy": "TBD meshes and band path before production / 生产计算前确定网格和能带路径",
+        "kpoints_policy": "生产计算前确定 mesh 和 band path",
         "potcar_labels": {"Na": "Na_pv", "C": "C"},
         "cluster_profile": "nmg",
-        "restart_link_policy": "Use ln -s for SCF CHGCAR/WAVECAR in downstream tasks / 后续任务用 ln -s 链接 SCF 的 CHGCAR/WAVECAR"
+        "restart_link_policy": "下游任务用 ln -s 链接 SCF 的 CHGCAR/WAVECAR"
       }
     ],
-    "convergence": ["relax ionic convergence by parser/review before SCF / relax 经解析确认离子收敛后才进入 SCF"],
-    "validation": ["Compare structural sanity and electronic outputs across candidates / 比较候选结构合理性与电子输出"],
-    "resource_budget": "TBD / 待补充",
-    "stop_conditions": ["Stop if convergence/resource envelope is exceeded without review / 超出收敛或资源参数包时停止并复核"]
+    "convergence": ["relax 经 parser/review 确认 ionic convergence 后才进入 SCF"],
+    "validation": ["比较候选结构合理性与 electronic output"],
+    "resource_budget": "待补充",
+    "stop_conditions": ["超出 convergence/resource envelope 且未重新审核时停止"]
   },
   "systems": [
     {

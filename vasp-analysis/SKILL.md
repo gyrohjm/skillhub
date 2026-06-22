@@ -1,6 +1,6 @@
 ---
 name: vasp-analysis
-description: Process and analyze completed VASP outputs by extracting validated plot-ready .dat files, generating figures, writing interpretation reports, and recommending next calculations without submitting jobs. Use when converting VASP, phonopy, LOBSTER, PyProcar, VASPKIT, CHGCAR/ELFCAR/PARCHG, DOSCAR, EIGENVAL, PROCAR, band.yaml, total_dos.dat, COHPCAR, ICOHPLIST, or notebook outputs into reusable data products. Do not use for task creation/submission or archive ledger registration; hand those to vasp-workflow and vasp-work-manager.
+description: Process and analyze completed VASP outputs by extracting validated plot-ready .dat files, generating figures, evaluating approved observables, writing interpretation reports, and proposing versioned computation-design changes without submitting jobs. Use when converting VASP, phonopy, LOBSTER, PyProcar, VASPKIT, CHGCAR/ELFCAR/PARCHG, DOSCAR, EIGENVAL, PROCAR, band.yaml, total_dos.dat, COHPCAR, ICOHPLIST, or notebook outputs into reusable data products. Do not create tasks or archive ledgers; hand design revisions, execution, and records to computation-design, vasp-workflow, and vasp-work-manager.
 ---
 
 # VASP Analysis
@@ -11,8 +11,10 @@ Use this skill after calculation outputs exist. The core product is reusable
 plot-ready `.dat` data, then figures, then interpretation reports. JSON is only
 for metadata such as `plot_manifest.json`.
 
-Use `vasp-workflow` to prepare or submit calculations. Use `vasp-work-manager`
-to register/archive completed tasks, plot data, figures, and reports.
+Use `computation-design` to revise the scientific calculation matrix. Use
+`vasp-workflow` to prepare or submit approved calculations. Use
+`vasp-work-manager` to register/archive completed tasks, plot data, figures,
+and reports.
 
 ## Skill Boundary
 
@@ -22,9 +24,10 @@ to register/archive completed tasks, plot data, figures, and reports.
 - Does not own: creating or submitting VASP tasks, changing calculation inputs,
   workflow automation, durable archive manifests/checksums, ledger records, or
   cleanup decisions.
-- Handoff: send new calculation requests to `vasp-workflow`; send completed
-  outputs, `.dat` files, figures, and reports to `vasp-work-manager` for
-  registration, archiving, and verification.
+- Handoff: send proposed new calculations to `computation-design` as a
+  versioned design change request; send completed outputs, `.dat` files,
+  figures, and reports to `vasp-work-manager` for registration, archiving, and
+  verification.
 
 ## Required First Steps
 
@@ -36,8 +39,11 @@ to register/archive completed tasks, plot data, figures, and reports.
    plots, read `references/plot-catalog.md`.
 4. For report writing or next-step recommendations, read
    `references/report-format.md`.
-5. Do not submit VASP jobs from this skill. If analysis suggests a new
-   calculation, write a next-task description for `vasp-workflow`.
+5. When an approved design snapshot exists, compare results with its observable
+   decision rules and report `supported`, `falsified`, or `inconclusive`.
+6. Do not submit VASP jobs from this skill. If analysis suggests a new
+   calculation, write `analysis/reports/design_change_request.json` for
+   `computation-design`; do not send an unreviewed task directly to workflow.
 
 ## Operating Rules
 
@@ -61,6 +67,9 @@ to register/archive completed tasks, plot data, figures, and reports.
   `<project_root>/docs/project_summary.md`.
 - When optional tools are missing, report the missing dependency and the source
   files needed to rerun extraction.
+- Treat recommended calculations as proposed scientific changes. They require a
+  new `computation-design` revision and approval before `vasp-workflow` may
+  prepare them as production tasks.
 
 ## Data Validator
 
@@ -103,6 +112,19 @@ python "$SKILL/scripts/vaplot_plot.py" profile \
   --output analysis/figures/chgdiff_z \
   --x-label "z (Angstrom)" \
   --y-label "Charge density difference"
+```
+
+Create a provenance-linked design change request when evidence requires a new
+calculation:
+
+```bash
+python "$SKILL/scripts/design_change_request.py" \
+  --case-root <case_root> \
+  --verdict inconclusive \
+  --trigger "decision threshold not resolved" \
+  --proposed-change "add a denser convergence point" \
+  --scientific-reason "current uncertainty overlaps the effect" \
+  --evidence <case_root>/analysis/plot_data/result.dat
 ```
 
 ## Reference Map

@@ -1,13 +1,13 @@
 ---
 name: vasp-workflow
-description: "Running/orchestration layer for VASP calculation tasks: workflow design, structure/POSCAR research, input preparation, submit review, safe Slurm submission, queue/dependency handoff, parsing, bounded recovery, and automation. Use when planning or preparing test/relax/SCF/band/DOS/phonon tasks, confirming POSCAR/INCAR/KPOINTS/POTCAR/job.sh provenance, selecting nmg/Phoenix/G3 resources, generating submit reviews, submitting jobs, handling runtime failures, or using vwf helpers. Do not use for long-term task registration/archive ledger work or plot/data analysis; hand those to vasp-work-manager and vasp-analysis."
+description: "Running/orchestration layer for VASP calculation tasks after scientific design: structure/POSCAR research, input preparation, submit review, safe Slurm submission, queue/dependency handoff, parsing, bounded recovery, and automation. Use when preparing approved or exploratory test/relax/SCF/band/DOS/phonon tasks, verifying computation-design provenance, confirming POSCAR/INCAR/KPOINTS/POTCAR/job.sh inputs, selecting nmg/Phoenix/G3 resources, submitting jobs, or handling runtime failures. Do not own scientific experiment design, archive ledgers, or plot/data analysis; hand those to computation-design, vasp-work-manager, and vasp-analysis."
 ---
 
 # VASP Workflow
 
 ## Overview
 
-Use this skill as the running/orchestration layer for VASP task creation,
+Use this skill as the running/orchestration layer for approved VASP task creation,
 submission, monitoring, dependency handoff, and bounded recovery. The main job
 is to make the Agent follow the user's calculation process correctly:
 
@@ -15,8 +15,11 @@ is to make the Agent follow the user's calculation process correctly:
 read rules -> confirm input sources -> prepare/check files -> show submit review -> get user approval -> submit
 ```
 
-Use `vasp-work-manager` after tasks need registration, archive records, ledger
-updates, or integrity checks. Use `vasp-analysis` after outputs exist and need
+Use `computation-design` before production task creation to establish
+hypotheses, controls, calculation matrices, convergence/validation rules, and
+scientific design approval. Use `vasp-work-manager` after tasks need
+registration, archive records, ledger updates, or integrity checks. Use
+`vasp-analysis` after outputs exist and need
 `.dat` extraction, plotting, or interpretation.
 
 ## Skill Boundary
@@ -26,8 +29,8 @@ updates, or integrity checks. Use `vasp-analysis` after outputs exist and need
   and workflow-state files such as `task_spec.json`, `state.json`, queue logs,
   and `submission_review.dat`.
 - Does not own: durable task registry/ledger, archive manifests/checksums,
-  cleanup decisions, plot-ready data extraction, figures, or scientific
-  interpretation reports.
+  cleanup decisions, scientific experiment design approval, plot-ready data
+  extraction, figures, or scientific interpretation reports.
 - Handoff: send completed or failed task records to `vasp-work-manager`; send
   DOS/band/phonon/ELF/CHGDIFF/pCOHP extraction and interpretation to
   `vasp-analysis`.
@@ -37,6 +40,8 @@ updates, or integrity checks. Use `vasp-analysis` after outputs exist and need
 1. For any submit, cancel, overwrite, cleanup, transfer, or compute action, read
    `references/safe-operations.md`.
 2. Before planning a calculation chain, read `references/workflow-order.md`.
+   For production work, first locate and verify the `computation-design`
+   `approval.json` and approved calculation-matrix ID.
 3. Before creating a new case tree, read `references/directory-layout.md`.
 4. Before generating a POSCAR from only a formula, material name, phase family,
    or uncertain structure description, read `references/structure-research.md`.
@@ -77,6 +82,12 @@ updates, or integrity checks. Use `vasp-analysis` after outputs exist and need
   labels, structure source, cluster profile, resource envelope, and completion
   gate. Downstream stages may proceed inside this reviewed envelope after relax
   convergence; anything outside it needs a new review.
+- Treat tasks without `--design-approval` and `--design-task` as exploratory
+  and scientifically untracked. Keep the old CLI compatible, but do not
+  auto-advance such tasks into a production chain.
+- Scientific design approval and VASP submission approval are independent. A
+  valid design scope authorizes preparation only; it never authorizes `sbatch`
+  or bypasses the complete input/resource submit review.
 - Do not change scientific inputs such as POSCAR, POTCAR, ENCUT, KPOINTS,
   ISMEAR, SIGMA, MAGMOM, EDIFF, or EDIFFG for convenience or speed unless the
   user explicitly approves that scientific change.
@@ -117,6 +128,7 @@ Common helpers:
 python -m vwf init-case --case-root ./SiC
 python -m vwf init-case --cluster phoenix --project-slug sic_project --system-slug sic_bulk --case-slug relax_pbe
 python -m vwf prepare relax --case-root ./SiC --potcar /path/to/POTCAR --encut 520 --kmesh "8 8 8"
+python -m vwf prepare relax --case-root ./SiC --design-approval /project/docs/records/design_reviews/sic_computation/r0001/approval.json --design-task matrix_relax --potcar /path/to/POTCAR --encut 520 --kmesh "8 8 8"
 python -m vwf prepare relax --case-root ./SiC --potcar /path/to/POTCAR --incar-preset magnetic-vdw-relax --kmesh "8 8 8"
 python -m vwf prepare relax --cluster nmg --project-slug sic_project --system-slug sic_bulk --case-slug relax_pbe --encut 520 --kmesh "8 8 8" --profile nmg
 python -m vwf prepare scf --case-root ./SiC --source-poscar ./SiC/relax/CONTCAR --potcar /path/to/POTCAR --encut 520 --kmesh "12 12 12"
@@ -136,6 +148,12 @@ For standard prepare commands, explicit `--potcar` wins. Without it, profile
 defaults search `/home/jmhe/app/pot` on nmg and
 `/home/jmhe/app/pot_database` on Phoenix profiles; ambiguous or missing
 matches require user confirmation.
+
+When both `--design-approval` and `--design-task` are provided, the helper
+verifies both approved snapshot hashes, scope, system/case metadata, and stage
+before writing task inputs. It snapshots the design review under
+`<case_root>/design/<design_id>/rNNNN/` and records provenance in
+`task_spec.json`, `workflow.json`, and `submission_review.dat`.
 
 Standard stage `job.sh` files are rendered from
 `assets/templates/jobvasp.sh`. Edit that template when the shared submit script

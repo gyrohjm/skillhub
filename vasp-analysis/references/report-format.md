@@ -16,18 +16,26 @@ Include:
 - figures used,
 - main physical observations,
 - uncertainty or failure notes,
-- recommended next calculations.
+- approved design ID/revision/matrix ID when available,
+- hypothesis verdict: `supported`, `falsified`, or `inconclusive`,
+- recommended design changes.
 
-When recommending new calculations, write a small next-task block for
-`vasp-workflow` rather than submitting directly:
+When recommending new calculations, write
+`<case_root>/analysis/reports/design_change_request.json` for
+`computation-design` rather than sending an unreviewed task to workflow:
 
 ```text
-next_task:
-  kind: electronic/dos
-  source: <path-or-archive>
-  reason: Need denser DOS around EF.
-  parameters_to_confirm: KPOINTS, INCAR, POSCAR, POTCAR
+design_change_request:
+  source_design: <design_id/revision/matrix_id>
+  verdict: supported | falsified | inconclusive
+  trigger: <evidence-backed reason>
+  proposed_change: <change to test>
+  evidence_paths: <validated .dat/report/source paths>
 ```
+
+The request is not execution authorization. `computation-design` must create a
+new revision and obtain scientific approval before `vasp-workflow` prepares the
+new production scope.
 
 Do not treat a plot as evidence unless the `.dat` source for that plot is
 preserved or can be regenerated from archived source files.

@@ -41,6 +41,12 @@ CORE_NAMES = {
     "plot_manifest.json",
     "analysis_report.md",
 }
+SCIENTIFIC_DESIGN_NAMES = {
+    "calculation_design.json",
+    "computation_plan.md",
+    "approval.json",
+    "design_change_request.json",
+}
 PLOT_SOURCE_NAMES = {
     "EIGENVAL",
     "DOSCAR",
@@ -132,6 +138,8 @@ def classify(path: Path, rel: Path, include_large: bool) -> str | None:
         return None
     if name in LARGE_NAMES:
         return "large"
+    if name in SCIENTIFIC_DESIGN_NAMES or "design_reviews" in rel.parts or "design" in rel.parts:
+        return "scientific_design"
     if name in CORE_NAMES:
         return "core"
     if name in PLOT_SOURCE_NAMES:
@@ -224,6 +232,18 @@ def load_or_create_result(source: Path) -> dict[str, Any]:
     return result
 
 
+def load_design_provenance(source: Path) -> dict[str, Any]:
+    task_spec_path = source / "task_spec.json"
+    if not task_spec_path.is_file():
+        return {}
+    try:
+        task_spec = json.loads(task_spec_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    provenance = task_spec.get("design_provenance") if isinstance(task_spec, dict) else None
+    return provenance if isinstance(provenance, dict) else {}
+
+
 def copy_selected(selected: list[dict[str, Any]], source: Path, dest: Path) -> list[dict[str, Any]]:
     copied: list[dict[str, Any]] = []
     for item in selected:
@@ -268,6 +288,8 @@ def write_archive_files(
         if item["category"] in {"plot_data", "plot_source", "metadata"}
         or Path(item["relpath"]).suffix.lower() in PLOT_DATA_EXTS
     ]
+    scientific_design = load_design_provenance(source)
+    scientific_design_files = [item for item in copied if item["category"] == "scientific_design"]
     manifest = {
         "schema": "vasp-work-manager.archive.v1",
         "project": project,
@@ -283,6 +305,8 @@ def write_archive_files(
         "created_at": utc_now(),
         "files": copied,
         "plot_data": plot_data,
+        "scientific_design": scientific_design,
+        "scientific_design_files": scientific_design_files,
     }
     manifest_path = dest / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
@@ -371,6 +395,7 @@ def main(argv: list[str] | None = None) -> int:
         result=result,
     )
     zip_path = make_zip(dest) if args.zip else None
+    design_provenance = manifest.get("scientific_design", {})
 
     init_db(ledger)
     with connect(ledger) as conn:
@@ -394,6 +419,9 @@ def main(argv: list[str] | None = None) -> int:
                 "parse_status": args.parse_status,
                 "review_status": args.review_status,
                 "notes": args.notes,
+                "design_id": design_provenance.get("design_id"),
+                "design_revision": design_provenance.get("design_revision"),
+                "design_matrix_id": design_provenance.get("matrix_id"),
                 "result_json": json.dumps(result, sort_keys=True),
                 "archived_at": utc_now(),
             },

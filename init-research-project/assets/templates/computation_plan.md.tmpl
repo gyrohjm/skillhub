@@ -1,27 +1,30 @@
-# Computation Plan / 计算计划
+# 计算计划
 
 {{COMPUTATION_PLAN}}
 
-## Required Execution Record / 必填执行记录
+机器可读的科学设计合同为 `docs/plans/calculation_design.json`。生产任务创建前，
+使用 `computation-design` 完成、验证、修订并批准指定 calculation matrix scope。
+审批后在 `docs/records/design_reviews/<design_id>/rNNNN/` 生成不可变快照。
+
+## 必填执行记录
 
 ```text
 task_id | hypothesis | model | method | parameter_set | convergence |
 validation | resource_budget | stop_condition | output_path
 ```
 
-Store original calculation inputs, outputs, pre-relax structures, and post-relax structures under `raw_data/calculations/<system_slug>/<case_slug>/`. Put reusable preparation and analysis code under `code/`. Copy structures to `formal_data/structures/<system_slug>/` only after explicit approval.
+原始计算输入、输出及优化前后结构保存到
+`raw_data/calculations/<system_slug>/<case_slug>/`。准备与分析代码放到 `code/`。
+结构仅在明确批准后复制到 `formal_data/structures/<system_slug>/`。
 
-## VASP Workflow Parameter Envelope / VASP 流程参数包
+## VASP workflow 参数包
 
-Define this section before production VASP runs. If a later stage stays inside
-this envelope, it can reuse the initial workflow approval; if it changes any
-scientific parameter, structure source, POTCAR label, KPOINTS policy, or resource
-profile, create a new review.
+生产 VASP 运行前完成本节。后续阶段只有在当前 envelope 内才可复用已有审批；
+科学参数、结构来源、POTCAR label、KPOINTS policy 或资源配置变化时必须重新审核。
 
-Use `vasp-workflow` for the running/orchestration layer, `vasp-work-manager` for
-the records/archive layer, and `vasp-analysis` for completed-output processing,
-figures, reports, and next-task recommendations. The initialized `AGENTS.md` and
-`CLAUDE.md` files contain the short handoff rules for future agents.
+使用 `computation-design` 负责科学设计和 revision，`vasp-workflow` 负责运行编排，
+`vasp-work-manager` 负责记录归档，`vasp-analysis` 负责输出处理、图表、报告和
+design change request。具体分工见 `AGENTS.md` 和 `CLAUDE.md`。
 
 ```text
 system_slug | case_slug | stage | structure_source | incar_inherited |
@@ -29,26 +32,23 @@ incar_overrides | kpoints_policy | potcar_labels | cluster_profile |
 resource_profile | completion_gate | downstream_inputs
 ```
 
-Minimum required stages for a standard VASP chain:
+标准 VASP chain 至少明确以下阶段：
 
-- `relax`: initial POSCAR source, full INCAR, KPOINTS mesh, POTCAR labels, `POSCAR-ini` retention rule, relax convergence gate, and allowed continuation limit.
-- `scf`: relaxed `CONTCAR` source, inherited relax parameters, explicit static overrides (`IBRION=-1`, `NSW=0`, `LWAVE=.TRUE.`, `LCHARG=.TRUE.` unless changed), KPOINTS mesh, and convergence gate.
-- `band` and `dos`: relaxed structure source, inherited electronic parameters, explicit K-path or DOS KPOINTS policy, and links to SCF `CHGCAR`/`WAVECAR` when required.
-- `phonon` or other follow-up tasks: relaxed structure source, finite-displacement or DFPT settings, supercell dimensions, worker count, and force convergence gate.
+- `relax`：初始 POSCAR 来源、完整 INCAR、KPOINTS mesh、POTCAR label、`POSCAR-ini` 保留规则、收敛 gate 和允许续算次数。
+- `scf`：relax `CONTCAR` 来源、继承参数、静态计算 override（默认 `IBRION=-1`、`NSW=0`、`LWAVE=.TRUE.`、`LCHARG=.TRUE.`）、KPOINTS mesh 和收敛 gate。
+- `band`、`dos`：relax 结构来源、继承电子参数、K-path 或 DOS KPOINTS policy，以及需要时指向 SCF `CHGCAR`/`WAVECAR` 的符号链接。
+- `phonon` 等后续任务：relax 结构来源、finite-displacement 或 DFPT 设置、supercell、worker 数和力收敛 gate。
 
-Large SCF restart outputs must be reused with symbolic links, not copied:
+SCF 大文件使用符号链接复用，不得复制：
 
 ```bash
 ln -s ../scf/CHGCAR CHGCAR
 ln -s ../scf/WAVECAR WAVECAR
 ```
 
-Record completed VASP outputs under
-`raw_data/calculations/<system_slug>/<case_slug>/`. After analysis, validated
-plot-ready `.dat` files and figures may be promoted to `formal_data` only after
-explicit user approval and a manifest entry.
+完成的 VASP 输出记录到 `raw_data/calculations/<system_slug>/<case_slug>/`。
+分析后的 `.dat` 和图仅在用户明确批准并登记 manifest 后进入 `formal_data`。
 
-This path is for the local research project. On clusters, do not create a
-second `raw_data/` tree: keep outputs in the calculation case, write processed
-data/figures/reports under `<case_root>/analysis/`, and summarize paths and
-conclusions in `<cluster_project_root>/docs/project_summary.md`.
+以上路径属于本地科研项目。集群不创建第二套 `raw_data/`，输出保留在 calculation
+case，处理数据、图和报告写入 `<case_root>/analysis/`，项目级路径与结论汇总到
+`<cluster_project_root>/docs/project_summary.md`。

@@ -1,35 +1,40 @@
 # {{AGENT_CONTEXT_FILENAME}}
 
-This file is the short agent entrypoint for Codex, Claude, and other AI coding
-agents working in this project. Keep detailed research context in
-`PROJECT_CONTEXT.md` and detailed plans under `docs/plans/`.
+本文件是 Codex、Claude 等 agent 的项目入口。详细科研背景以
+`PROJECT_CONTEXT.md` 为准，详细计划放在 `docs/plans/`。
 
-## Source of Truth
+## 信息源
 
-Read `PROJECT_CONTEXT.md` and the relevant files under `docs/` before planning or changing scientific work.
-Use `docs/plans/` for plans and `docs/records/` for decisions and task logs.
+规划或修改科研工作前，先阅读 `PROJECT_CONTEXT.md` 和 `docs/` 下的相关文件。
+计划写入 `docs/plans/`，决策与任务日志写入 `docs/records/`。
 
-## Operating Rules
+## 工作规则
 
-- Preserve `raw_data`; never edit source data in place.
-- Store calculation raw data as `raw_data/calculations/<system_slug>/<case_slug>/`.
-- Keep pre-relax and post-relax structures in raw data first; copy structures to `formal_data/structures/<system_slug>/` only after explicit approval.
-- Put reproducible transformations in `code/`.
-- Do not copy an artifact into `formal_data` without explicit user approval and a manifest entry.
-- Keep directory and generated file names in English `lowercase_snake_case`.
-- Distinguish evidence, assumptions, hypotheses, and conclusions.
-- Do not silently change scientific parameters, exclusions, controls, or validation criteria.
-- Record consequential scientific decisions in `docs/records/decisions.md`.
-- Update `PROJECT_CONTEXT.md` when scope or acceptance criteria change.
+- 保留 `raw_data` 原文件，不得原位修改。
+- 计算原始数据放在 `raw_data/calculations/<system_slug>/<case_slug>/`。
+- 优化前后结构先进入 raw data；仅经明确批准后复制到 `formal_data/structures/<system_slug>/`。
+- 可复现转换代码放在 `code/`。
+- 未经用户批准和 manifest 登记，不得将产物放入 `formal_data`。
+- 目录名和生成文件名使用英文 `lowercase_snake_case`。
+- 明确区分证据、假设、推测和结论。
+- 不得静默修改科学参数、排除条件、对照或验证标准。
+- 重要科学决策记录到 `docs/records/decisions.md`。
+- 执行日志放在 `docs/records/task_logs/`。每次出现实质任务状态变化后，向
+  `project_log.md` 和当日 `daily/YYYY-MM-DD.md` 追加事实记录；若当日日志不存在，
+  按本地日志格式创建。每天结束前完成当日收尾，不得虚构工作内容。
+- 项目范围或验收标准变化时更新 `PROJECT_CONTEXT.md`。
+- 面向人的 Markdown 正文默认使用中文；代码、JSON key、路径、文件名、命令、
+  `INCAR`/`KPOINTS`/`POTCAR` 等专业参数名保持英文。不要逐句中英双写。
 
-## VASP Skill Handoff
+## VASP Skill 分工
 
-- Use `vasp-workflow` for the running/orchestration layer: plan VASP calculation chains, prepare POSCAR/INCAR/KPOINTS/POTCAR/job.sh, generate submit reviews, submit Slurm jobs, create automation scripts, continue relax runs, orchestrate relax/SCF/band/DOS/phonon stages, and perform bounded recovery. It owns running workflow state such as `task_spec.json`, `state.json`, `submission_review.dat`, queue logs, and automation files.
-- Use `vasp-work-manager` for the records/archive layer after a task exists: register existing tasks, record status and notes, maintain the ledger, archive calculation directories, generate manifests and SHA256 checksums, verify archives, update the project summary, and plan cleanup from recorded evidence. It must not submit jobs, recover Slurm/VASP failures, or change scientific inputs.
-- Use `vasp-analysis` only after outputs exist: extract validated plot-ready `.dat` files, generate figures, write analysis reports, interpret completed outputs, and propose next calculations. It must not submit jobs, register ledger records, or decide archive retention.
-- On clusters, managed VASP work should live under `/home/<user>/projects/<short_english_project_slug>/`; if this local project name is Chinese, translate it to a short English `lowercase_snake_case` slug before creating cluster directories.
-- Do not recreate this project's `raw_data/` or `formal_data/` tree on the cluster. Keep VASP outputs in their source case, process/plot under that case's `analysis/` directory, and summarize report/figure paths and conclusions in the cluster project's `docs/project_summary.md`.
-- Before production VASP runs, define the downstream parameter envelope in `docs/plans/computation_plan.md`: relax, SCF, band, DOS, phonon, and other expected follow-up stages must list their inherited INCAR settings, explicit overrides, KPOINTS policy, POTCAR labels, structure source, resource profile, and completion gate.
-- After relax convergence, SCF and downstream tasks may proceed inside that pre-reviewed envelope without asking for a new scientific decision. If any INCAR/KPOINTS/POTCAR/structure/resource choice falls outside the envelope, stop and ask for review.
-- Keep `relax/POSCAR-ini` as the initial approved geometry. For unconverged relax continuation, preserve each attempt's `OUTCAR` and `CONTCAR` before copying `CONTCAR` to `POSCAR`.
-- When downstream tasks reuse SCF `CHGCAR` or `WAVECAR`, create symbolic links (`ln -s`) rather than copying the files.
+- 生产任务创建前使用 `computation-design`：定义可证伪假设、observable、对照、收敛测试、验证、误差目标、计算矩阵、资源预算和停止条件。它负责 `docs/plans/calculation_design.json` 与科学设计审核包，不生成 VASP 输入、不提交、不分析、不归档。
+- 科学设计 scope 获批后使用 `vasp-workflow`：准备 POSCAR/INCAR/KPOINTS/POTCAR/job.sh，生成 submit review，提交 Slurm，执行 relax/SCF/band/DOS/phonon 编排和有限恢复。它负责 `task_spec.json`、`state.json`、`submission_review.dat`、queue log 和自动化文件。
+- 任务存在后使用 `vasp-work-manager`：登记状态、维护 ledger、归档计算目录、生成 manifest 和 SHA256、校验 archive、更新项目摘要。它不得提交任务、恢复运行或修改科学输入。
+- 输出完成后使用 `vasp-analysis`：提取可复用 `.dat`、绘图、写分析报告，并按已批准的 observable 和 decision rule 解释结果。新增计算建议必须形成 design change request 返回 `computation-design`。
+- 集群 VASP 项目使用 `/home/<user>/projects/<project_slug>/`；`project_slug` 必须是简短英文 `lowercase_snake_case`。
+- 集群上不复制本地 `raw_data/`、`formal_data/` 树。输出保留在来源 case，处理结果写入该 case 的 `analysis/`，项目级索引写入 `docs/project_summary.md`。
+- 生产计算前完成并批准 `docs/plans/computation_plan.md` 与 `docs/plans/calculation_design.json`。relax、SCF、band、DOS、phonon 等阶段需明确继承参数、override、KPOINTS policy、POTCAR label、结构来源、资源配置和 completion gate。
+- relax 收敛后，下游任务可在预审 envelope 内继续；任何超出 envelope 的 INCAR/KPOINTS/POTCAR/结构/资源变化都必须停止并复核。
+- 保留 `relax/POSCAR-ini`。未收敛 relax 续算前，先保存当次 `OUTCAR` 和 `CONTCAR`，再将 `CONTCAR` 复制为 `POSCAR`。
+- 下游任务复用 SCF 的 `CHGCAR` 或 `WAVECAR` 时使用符号链接 `ln -s`，不得复制大文件。

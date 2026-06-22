@@ -15,7 +15,10 @@ Turn a research idea into an executable, AI-readable project only after the user
 4. State the research question, falsifiable hypotheses, objectives, success criteria, constraints, deliverables, and unresolved assumptions.
 5. Ask permission before searching external literature or databases. Mark unsupported claims as pending validation when permission or network access is absent.
 6. Design an executable plan. Read `references/experimental_design.md` for experimental work and `references/computational_design.md` for computational work.
-7. Build `project_spec.json` using `references/project_schema.md`. Use bilingual Chinese/English content unless the user requests otherwise.
+7. Build `project_spec.json` using `references/project_schema.md`. Keep JSON
+   keys, code, paths, filenames, commands, and technical parameter names in
+   English; write human-facing values and Markdown prose in Chinese by default.
+   Do not duplicate the same content in Chinese and English.
 8. Run the initializer with `--dry-run`. Show the normalized project name, directory tree, files to create, and files that will remain untouched.
 9. Ask for explicit confirmation, then run with `--apply`. Existing files must never be overwritten.
 10. Ask separately before passing `--git-init`.
@@ -32,25 +35,34 @@ formal_data/
 ```
 
 Use English `lowercase_snake_case` for directories, Python files, notebooks, and data files. Root convention files may use standard uppercase names such as `README.md`, `PROJECT_CONTEXT.md`, `AGENTS.md`, and `CLAUDE.md`.
+Write human-facing Markdown titles and prose in Chinese. Preserve established
+English technical names such as VASP, POSCAR, INCAR, KPOINTS, POTCAR, Slurm,
+parameter keys, units, code symbols, and schema fields.
 
 Treat `PROJECT_CONTEXT.md` as the human and agent source of truth. Keep
 `AGENTS.md` and `CLAUDE.md` short and point them to the project context and
 research plans. For computational or hybrid projects, both files must also name
-the VASP handoff skills: use `vasp-workflow` for the running/orchestration
-layer, including task creation, submit review, Slurm submission, automation,
-and bounded recovery; use `vasp-work-manager` for the records/archive layer,
+the computation/VASP handoff skills: use `computation-design` for hypotheses,
+controls, convergence, validation, calculation matrices, and scientific design
+approval; use `vasp-workflow` for the running/orchestration layer, including
+task creation, submit review, Slurm submission, automation, and bounded
+recovery; use `vasp-work-manager` for the records/archive layer,
 including task intake, ledger records, archives, manifests, checksums, and
 project summaries; use `vasp-analysis` for completed-output `.dat` extraction,
 plotting, reporting, interpretation, and next-task recommendations.
 
 Put plan documents under `docs/plans/` and decision/execution records under
-`docs/records/`. For computational projects, store raw calculation data under
+`docs/records/`. Initialize `docs/records/task_logs/project_log.md` and the
+current `daily/YYYY-MM-DD.md`. Agents append both after material task state
+changes and complete the daily closeout before ending work; follow the local
+task-log README. For computational projects, store raw calculation data under
 `raw_data/calculations/<system_slug>/<case_slug>/`; `system_slug` and
 `case_slug` must be English `lowercase_snake_case`.
 For VASP projects, define the relax/SCF/band/DOS/phonon parameter envelope in
-`docs/plans/computation_plan.md` during initialization so downstream steps can
-reuse pre-reviewed INCAR/KPOINTS/POTCAR/resource choices without a new
-scientific decision.
+`docs/plans/computation_plan.md` and `docs/plans/calculation_design.json` with
+`computation-design`. Only an immutable approved design scope may become a
+production workflow; downstream steps can then reuse its reviewed
+INCAR/KPOINTS/POTCAR/resource choices without a new scientific decision.
 
 Treat `raw_data/` and `formal_data/` as local research-project directories. Do
 not recreate them in cluster project roots. Cluster VASP cases keep source
@@ -91,6 +103,8 @@ python scripts/promote_formal_data.py --project <project_path> --source <process
 
 ## Handoffs
 
+- For detailed computational experiment design, scientific review, or design
+  revisions, hand off to `computation-design`.
 - For calculation-specific VASP task creation, orchestration, review,
   submission, or recovery, hand off to `vasp-workflow`.
 - For VASP task intake, ledger records, archiving, reporting, or integrity

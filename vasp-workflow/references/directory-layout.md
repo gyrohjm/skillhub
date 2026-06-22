@@ -51,6 +51,12 @@ Create every material or configuration under one case root:
 
 ```text
 <case-root>/
+  design/
+    <design_id>/
+      rNNNN/
+        calculation_design.json
+        computation_plan.md
+        approval.json
   structure/
     POSCAR.initial
     metadata.json
@@ -109,6 +115,9 @@ Use `task_spec.json` in each task directory to record:
 - cluster profile and Slurm resource envelope,
 - submit script path and job id when known,
 - notes about user-approved scientific parameters.
+- scientific design ID, revision, approved matrix ID, and design/approval
+  hashes. Production task preparation snapshots the approved review bundle
+  under `design/`; exploratory tasks record that design provenance is absent.
 
 Under `structure/`, keep `metadata.json` for provenance. When a structure was
 researched from databases or literature, `candidates.dat` should record the

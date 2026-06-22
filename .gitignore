@@ -18,6 +18,7 @@ __pycache__/
 *token*
 cluster-profiles.local.md
 potcar-catalog.local.json
+simple-sci-ppt/scripts/mineru_config.json
 
 # Historical/reference material kept locally.
 archived/

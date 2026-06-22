@@ -80,7 +80,8 @@ the `/home/<user>/projects/<project_slug>/` convention.
   `vasp-work-manager` records those paths in the ledger/archive manifest.
 - Maintain only a concise project-level summary at `docs/project_summary.md`.
   Record system/case, task state, source path, analysis report/figure paths,
-  archive path, and key conclusions; do not copy numeric data into the summary.
+  scientific design revision/matrix, archive path, and key conclusions; do not
+  copy numeric data into the summary.
 - When results are intentionally synchronized to the local research project,
   the local copy may enter `raw_data/calculations/<system_slug>/<case_slug>/`
   and later follow the local promotion lifecycle. This does not create a
@@ -89,9 +90,9 @@ the `/home/<user>/projects/<project_slug>/` convention.
 Use this minimum project-summary table:
 
 ```markdown
-| task | state | source_case | analysis_files | archive | review | conclusion/notes |
-|---|---|---|---|---|---|---|
-| sic_bulk.relax_pbe | completed | calculations/sic_bulk/relax_pbe | analysis/plot_data/energy.dat; analysis/figures/relax.pdf | archive/sic_bulk/relax_pbe/... | accepted | Relaxed structure converged. |
+| task | state | design | source_case | analysis_files | archive | review | conclusion/notes |
+|---|---|---|---|---|---|---|---|
+| sic_bulk.relax_pbe | completed | sic_computation / 1 / M1 | calculations/sic_bulk/relax_pbe | analysis/plot_data/energy.dat; analysis/figures/relax.pdf | archive/sic_bulk/relax_pbe/... | accepted | Relaxed structure converged. |
 ```
 
 Append or update one row per case. Keep detailed methods, numeric tables, and
@@ -158,6 +159,15 @@ submission_review.dat
 submission_approval.json
 queue.log
 result.json
+```
+
+Keep scientific design evidence when present:
+
+```text
+design/<design_id>/rNNNN/calculation_design.json
+design/<design_id>/rNNNN/computation_plan.md
+design/<design_id>/rNNNN/approval.json
+analysis/reports/design_change_request.json
 ```
 
 Keep processed data and figure data by default:

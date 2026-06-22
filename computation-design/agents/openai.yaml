@@ -1,0 +1,4 @@
+interface:
+  display_name: "Computation Design"
+  short_description: "Design scientifically defensible computational experiments"
+  default_prompt: "Use $computation-design to turn my research question into a reviewable computational experiment design with hypotheses, controls, convergence, validation, and VASP handoff gates."

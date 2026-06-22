@@ -27,6 +27,7 @@ BASE_DIRECTORIES = [
     "docs/plans",
     "docs/records",
     "docs/records/task_logs",
+    "docs/records/task_logs/daily",
     "docs/presentations",
     "docs/tutorials",
     "code",
@@ -50,8 +51,8 @@ BASE_DIRECTORIES = [
 MODE_DIRECTORIES = {
     "generic": [],
     "experimental": ["raw_data/experiments"],
-    "computational": [],
-    "hybrid": ["raw_data/experiments", "raw_data/calculations"],
+    "computational": ["docs/records/design_reviews"],
+    "hybrid": ["docs/records/design_reviews", "raw_data/experiments", "raw_data/calculations"],
 }
 
 
@@ -138,7 +139,7 @@ def load_spec(path: Path) -> dict[str, Any]:
     return spec
 
 
-def markdown_list(items: Any, empty: str = "- TBD / 待补充") -> str:
+def markdown_list(items: Any, empty: str = "- 待补充") -> str:
     if not items:
         return empty
     if not isinstance(items, list):
@@ -146,7 +147,7 @@ def markdown_list(items: Any, empty: str = "- TBD / 待补充") -> str:
     lines = []
     for item in items:
         if isinstance(item, dict):
-            lines.append("- Structured item:")
+            lines.append("- 结构化内容：")
             lines.append("  ```json")
             for line in json.dumps(item, ensure_ascii=False, indent=2).splitlines():
                 lines.append(f"  {line}")
@@ -163,8 +164,8 @@ def format_hypotheses(items: list[dict[str, Any]]) -> str:
         lines.extend(
             [
                 f"### {identifier}",
-                f"- Statement / 陈述: {item['statement']}",
-                f"- Falsification / 否证条件: {item['falsification']}",
+                f"- 陈述：{item['statement']}",
+                f"- 否证条件：{item['falsification']}",
                 "",
             ]
         )
@@ -178,8 +179,8 @@ def format_objectives(items: list[dict[str, Any]]) -> str:
         lines.extend(
             [
                 f"### {identifier}",
-                f"- Objective / 目标: {item['description']}",
-                f"- Success criteria / 验收标准: {item['success_criteria']}",
+                f"- 目标：{item['description']}",
+                f"- 验收标准：{item['success_criteria']}",
                 "",
             ]
         )
@@ -188,46 +189,61 @@ def format_objectives(items: list[dict[str, Any]]) -> str:
 
 def format_milestones(items: Any) -> str:
     if not items:
-        return "| ID | Milestone / 里程碑 | Acceptance / 验收 | Target date / 日期 |\n|---|---|---|---|\n| M1 | TBD | TBD | TBD |"
+        return "| ID | 里程碑 | 验收条件 | 目标日期 |\n|---|---|---|---|\n| M1 | 待补充 | 待补充 | 待补充 |"
     lines = [
-        "| ID | Milestone / 里程碑 | Acceptance / 验收 | Target date / 日期 |",
+        "| ID | 里程碑 | 验收条件 | 目标日期 |",
         "|---|---|---|---|",
     ]
     for index, item in enumerate(items, start=1):
         if not isinstance(item, dict):
             item = {"description": str(item)}
         lines.append(
-            f"| {item.get('id', f'M{index}')} | {item.get('description', 'TBD')} | "
-            f"{item.get('acceptance', 'TBD')} | {item.get('target_date', 'TBD')} |"
+            f"| {item.get('id', f'M{index}')} | {item.get('description', '待补充')} | "
+            f"{item.get('acceptance', '待补充')} | {item.get('target_date', '待补充')} |"
         )
     return "\n".join(lines)
 
 
 def format_risks(items: Any) -> str:
     if not items:
-        return "| Risk / 风险 | Likelihood / 可能性 | Impact / 影响 | Mitigation / 缓解 |\n|---|---|---|---|\n| TBD | TBD | TBD | TBD |"
+        return "| 风险 | 可能性 | 影响 | 缓解措施 |\n|---|---|---|---|\n| 待补充 | 待补充 | 待补充 | 待补充 |"
     lines = [
-        "| Risk / 风险 | Likelihood / 可能性 | Impact / 影响 | Mitigation / 缓解 |",
+        "| 风险 | 可能性 | 影响 | 缓解措施 |",
         "|---|---|---|---|",
     ]
     for item in items:
         if not isinstance(item, dict):
             item = {"risk": str(item)}
         lines.append(
-            f"| {item.get('risk', 'TBD')} | {item.get('likelihood', 'TBD')} | "
-            f"{item.get('impact', 'TBD')} | {item.get('mitigation', 'TBD')} |"
+            f"| {item.get('risk', '待补充')} | {item.get('likelihood', '待补充')} | "
+            f"{item.get('impact', '待补充')} | {item.get('mitigation', '待补充')} |"
         )
     return "\n".join(lines)
 
 
 def format_plan(value: Any) -> str:
     if not value:
-        return "TBD / 待补充"
+        return "待补充"
     if not isinstance(value, dict):
         return str(value)
     lines = []
+    headings = {
+        "models": "模型",
+        "methods": "方法",
+        "parameter_matrix": "参数矩阵",
+        "vasp_workflow_envelope": "VASP workflow 参数包",
+        "convergence": "收敛测试",
+        "validation": "验证",
+        "resource_budget": "资源预算",
+        "stop_conditions": "停止条件",
+        "variables": "变量",
+        "controls": "对照",
+        "measurements": "测量",
+        "replication": "重复与复现",
+        "analysis": "分析",
+    }
     for key, item in value.items():
-        title = key.replace("_", " ").title()
+        title = headings.get(key, key)
         lines.append(f"## {title}")
         if isinstance(item, list):
             lines.append(markdown_list(item))
@@ -236,23 +252,23 @@ def format_plan(value: Any) -> str:
             lines.append(json.dumps(item, ensure_ascii=False, indent=2))
             lines.append("```")
         else:
-            lines.append(str(item) if item else "TBD / 待补充")
+            lines.append(str(item) if item else "待补充")
         lines.append("")
     return "\n".join(lines).rstrip()
 
 
 def format_evidence(value: Any) -> str:
     if not isinstance(value, dict):
-        return "- External search approved / 已批准外部检索: No / 否\n- Pending validation / 待验证: TBD"
-    approved = "Yes / 是" if value.get("external_search_approved") else "No / 否"
-    sources = markdown_list(value.get("sources"), empty="- None recorded / 暂无")
-    pending = markdown_list(value.get("pending_validation"), empty="- None recorded / 暂无")
-    return f"- External search approved / 已批准外部检索: {approved}\n\n### Sources / 来源\n\n{sources}\n\n### Pending validation / 待验证\n\n{pending}"
+        return "- 已批准外部检索：否\n- 待验证：待补充"
+    approved = "是" if value.get("external_search_approved") else "否"
+    sources = markdown_list(value.get("sources"), empty="- 暂无")
+    pending = markdown_list(value.get("pending_validation"), empty="- 暂无")
+    return f"- 已批准外部检索：{approved}\n\n### 来源\n\n{sources}\n\n### 待验证\n\n{pending}"
 
 
 def format_terminology(value: Any) -> str:
     if not isinstance(value, dict) or not value:
-        return "- TBD / 待补充"
+        return "- 待补充"
     return "\n".join(f"- **{key}**: {definition}" for key, definition in value.items())
 
 
@@ -263,7 +279,7 @@ def build_context(spec: dict[str, Any]) -> dict[str, str]:
         "MODE": str(spec["mode"]),
         "DOMAIN": str(spec["domain"]),
         "SUMMARY": str(spec["summary"]),
-        "BACKGROUND": str(spec.get("background") or "TBD / 待补充"),
+        "BACKGROUND": str(spec.get("background") or "待补充"),
         "RESEARCH_QUESTIONS": markdown_list(spec["research_questions"]),
         "HYPOTHESES": format_hypotheses(spec["hypotheses"]),
         "OBJECTIVES": format_objectives(spec["objectives"]),
@@ -290,6 +306,177 @@ def render_template(name: str, context: dict[str, str]) -> str:
     return text.rstrip() + "\n"
 
 
+def build_calculation_design(spec: dict[str, Any]) -> dict[str, Any]:
+    project_slug = str(spec["project_slug"])
+    hypotheses = [
+        {
+            "id": str(item.get("id") or f"H{index}"),
+            "statement": str(item["statement"]),
+            "falsification": str(item["falsification"]),
+        }
+        for index, item in enumerate(spec["hypotheses"], start=1)
+    ]
+    research_questions = []
+    for index, item in enumerate(spec["research_questions"], start=1):
+        if isinstance(item, dict):
+            research_questions.append(
+                {"id": str(item.get("id") or f"Q{index}"), "question": str(item.get("question") or "待补充")}
+            )
+        else:
+            research_questions.append({"id": f"Q{index}", "question": str(item)})
+
+    systems = []
+    for item in spec.get("systems", []):
+        system_slug = str(item["system_slug"] if isinstance(item, dict) else item)
+        systems.append(
+            {
+                "system_slug": system_slug,
+                "model": "待补充",
+                "structure_provenance": "待补充",
+                "assumptions": [],
+            }
+        )
+    if not systems:
+        systems.append(
+            {
+                "system_slug": "system_tbd",
+                "model": "待补充",
+                "structure_provenance": "待补充",
+                "assumptions": [],
+            }
+        )
+
+    computation_plan = spec.get("computation_plan")
+    if not isinstance(computation_plan, dict):
+        computation_plan = {}
+    workflow_envelopes = computation_plan.get("vasp_workflow_envelope")
+    if not isinstance(workflow_envelopes, list) or not workflow_envelopes:
+        workflow_envelopes = [{}]
+
+    matrix: list[dict[str, Any]] = []
+    vasp_envelopes: list[dict[str, Any]] = []
+    known_systems = {item["system_slug"] for item in systems}
+    default_system = systems[0]["system_slug"]
+    for index, item in enumerate(workflow_envelopes, start=1):
+        if not isinstance(item, dict):
+            item = {}
+        system_slug = str(item.get("system_slug") or default_system)
+        if system_slug not in known_systems:
+            systems.append(
+                {
+                    "system_slug": system_slug,
+                    "model": "待补充",
+                    "structure_provenance": "待补充",
+                    "assumptions": [],
+                }
+            )
+            known_systems.add(system_slug)
+        case_slug = str(item.get("case_slug") or f"case_{index}")
+        matrix_id = f"matrix_{system_slug}_{case_slug}"
+        stages = item.get("stages") if isinstance(item.get("stages"), list) else ["relax"]
+        matrix.append(
+            {
+                "id": matrix_id,
+                "class": "exploratory",
+                "system_slug": system_slug,
+                "case_slug": case_slug,
+                "hypothesis_ids": [entry["id"] for entry in hypotheses],
+                "purpose": "待补充",
+                "variables": {},
+                "fixed_parameters": {},
+                "stages": stages,
+                "observable_ids": ["OBS1"],
+                "completion_gate": "待补充",
+            }
+        )
+        vasp_envelopes.append(
+            {
+                "matrix_id": matrix_id,
+                "structure_source": "待补充",
+                "incar_policy": str(item.get("incar_inheritance") or "待补充"),
+                "kpoints_policy": str(item.get("kpoints_policy") or "待补充"),
+                "potcar_labels": item.get("potcar_labels") if isinstance(item.get("potcar_labels"), dict) else {},
+                "resource_profile": str(item.get("cluster_profile") or "待补充"),
+                "completion_gates": {stage: "待补充" for stage in stages},
+            }
+        )
+
+    evidence_spec = spec.get("evidence") if isinstance(spec.get("evidence"), dict) else {}
+    sources = evidence_spec.get("sources") if isinstance(evidence_spec.get("sources"), list) else []
+    evidence = [
+        {
+            "id": f"E{index}",
+            "claim": "待补充",
+            "source": str(source),
+            "kind": "primary_source",
+            "status": "pending",
+            "supports": [entry["id"] for entry in hypotheses],
+        }
+        for index, source in enumerate(sources, start=1)
+    ]
+    if not evidence:
+        evidence.append(
+            {
+                "id": "E1",
+                "claim": "待补充",
+                "source": "待补充",
+                "kind": "primary_source",
+                "status": "pending",
+                "supports": [entry["id"] for entry in hypotheses],
+            }
+        )
+
+    stop_conditions = computation_plan.get("stop_conditions")
+    if not isinstance(stop_conditions, list) or not stop_conditions:
+        stop_conditions = ["待补充"]
+    return {
+        "schema_version": 1,
+        "design_id": f"{project_slug}_computation",
+        "revision": 1,
+        "status": "draft",
+        "project_slug": project_slug,
+        "title": f"{spec['project_name']}计算实验设计",
+        "research_questions": research_questions,
+        "hypotheses": hypotheses,
+        "systems": systems,
+        "observables": [
+            {
+                "id": "OBS1",
+                "hypothesis_ids": [entry["id"] for entry in hypotheses],
+                "quantity": "待补充",
+                "decision_rule": "待补充",
+                "uncertainty_target": "待补充",
+            }
+        ],
+        "controls": [{"id": "CTRL1", "type": "baseline", "purpose": "待补充", "fixed_or_varied": "待补充"}],
+        "convergence_studies": [
+            {
+                "id": "CONV1",
+                "parameter": "待补充",
+                "candidate_values": [],
+                "fixed_conditions": [],
+                "target_observable_ids": ["OBS1"],
+                "acceptance_rule": "待补充",
+                "selected_value": None,
+            }
+        ],
+        "validation_checks": [
+            {"id": "VAL1", "type": "independent_reference", "reference": "待补充", "acceptance_rule": "待补充"}
+        ],
+        "calculation_matrix": matrix,
+        "vasp_stage_envelopes": vasp_envelopes,
+        "evidence": evidence,
+        "uncertainty_budget": [],
+        "resource_budget": {
+            "task_count": "待补充",
+            "compute": str(computation_plan.get("resource_budget") or "待补充"),
+            "storage": "待补充",
+        },
+        "stop_conditions": stop_conditions,
+        "pending_decisions": ["完成并审核计算实验设计"],
+    }
+
+
 def build_files(spec: dict[str, Any]) -> list[PlannedFile]:
     context = build_context(spec)
     agents_context = {**context, "AGENT_CONTEXT_FILENAME": "AGENTS.md"}
@@ -305,6 +492,12 @@ def build_files(spec: dict[str, Any]) -> list[PlannedFile]:
         PlannedFile("docs/plans/milestones.md", render_template("milestones.md.tmpl", context)),
         PlannedFile("docs/plans/risk_register.md", render_template("risk_register.md.tmpl", context)),
         PlannedFile("docs/records/decisions.md", render_template("decisions.md.tmpl", context)),
+        PlannedFile("docs/records/task_logs/README.md", render_template("task_logs_readme.md.tmpl", context)),
+        PlannedFile("docs/records/task_logs/project_log.md", render_template("project_log.md.tmpl", context)),
+        PlannedFile(
+            f"docs/records/task_logs/daily/{context['CREATED_DATE']}.md",
+            render_template("daily_task_log.md.tmpl", context),
+        ),
         PlannedFile("formal_data/README.md", render_template("formal_data_readme.md.tmpl", context)),
         PlannedFile("formal_data/MANIFEST.csv", render_template("manifest.csv.tmpl", context)),
         PlannedFile("docs/project_spec.json", json.dumps(spec, ensure_ascii=False, indent=2) + "\n"),
@@ -314,6 +507,12 @@ def build_files(spec: dict[str, Any]) -> list[PlannedFile]:
         files.append(PlannedFile("docs/plans/experiment_plan.md", render_template("experiment_plan.md.tmpl", context)))
     if mode in {"computational", "hybrid"}:
         files.append(PlannedFile("docs/plans/computation_plan.md", render_template("computation_plan.md.tmpl", context)))
+        files.append(
+            PlannedFile(
+                "docs/plans/calculation_design.json",
+                json.dumps(build_calculation_design(spec), ensure_ascii=False, indent=2) + "\n",
+            )
+        )
     return files
 
 

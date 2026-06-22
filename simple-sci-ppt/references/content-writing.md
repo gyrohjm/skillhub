@@ -1,23 +1,31 @@
 # Content Writing Workflow
 
-Use this file when creating the markdown plan and slide text. The goal is to make the deck read like a prepared research/classroom report rather than AI-generated notes.
+Use this file when creating the slide-level markdown plan and slide text. The goal is to make the deck read like a prepared research/classroom report rather than AI-generated notes.
 
-## Two-Stage Planning
+## Slide-Level Planning
+
+Narrative-level planning (core argument, audience analysis, evidence
+chain, time budget, material prioritization) is owned by
+`sci-talk-planning`. If a `talk_plan.md` is available, import its
+narrative arc and claim-evidence matrix into the slide plan and skip
+narrative-level design. If no talk plan exists, ask the user for
+minimum context (core argument, audience, time) and proceed with a
+lightweight inline version.
 
 1. Create one markdown planning document before generating PPTX.
-2. Write the deck outline in that same markdown document before expanding slide content.
-3. Review the outline for storyline, source coverage, and slide count.
+2. Write the slide outline in that same markdown document before expanding slide content. If a talk plan exists, map its narrative arc sections to specific slides.
+3. Review the slide outline for source coverage, slide count, and the final conclusion slide.
 4. Expand each outline item into slide-level content only after the outline is coherent.
 5. Rewrite slide text with a scientific-humanization pass before generating PPTX.
 6. Keep the expanded content constrained by the per-slide limits below.
 
 Do not split the outline and expanded slide content into two separate planning documents unless the user explicitly requests separate files. A reviewer should be able to read one markdown plan and see both the first-pass outline and the final expanded page content.
 
-The outline should decide what each slide proves. The expansion should only add the evidence, formula, figure, table, or code needed to support that local message.
+The slide outline should decide what each slide proves. The expansion should only add the evidence, formula, figure, table, or code needed to support that local message.
 
 ## Language Default
 
-Use English as the default language for slide text, titles, labels, conclusion sentences, and speaker notes unless the user specifies Chinese or another target language. Preserve source-specific proper nouns, variable names, formulas, citations, and technical terms. If the user requests Chinese, use formal Chinese declarative phrasing and avoid casual classroom filler.
+If a `talk_plan.md` is available, use its `language` field. Otherwise, use Chinese as the default language for slide text, titles, labels, conclusion sentences, and speaker notes unless the user explicitly requests English or another target language. Preserve source-specific proper nouns, variable names, formulas, citations, and technical terms. If the user requests Chinese, use formal Chinese declarative phrasing and avoid casual classroom filler.
 
 ## Evidence-Tracked Expansion
 
@@ -32,7 +40,7 @@ For each figure, table, formula, code box, or paper crop, record:
 
 Do not mark the writing pass as complete if the plan promises a figure, model, or spectrum but the generated PPT only contains text. A missing paper figure should be written as `pending crop` or `omitted`, not hidden behind a checked QA item.
 
-## Outline Requirements
+## Slide Outline Requirements
 
 Every deck should include:
 

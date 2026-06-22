@@ -38,5 +38,7 @@ Use this reference when project mode is `computational` or `hybrid`.
 
 - Stop expanding the matrix when the hypothesis is resolved within predefined uncertainty or when further calculations cannot discriminate competing explanations.
 - Escalate unresolved structure, phase, or method provenance before production runs.
+- Use `computation-design` to turn this checklist into the versioned
+  `calculation_design.json` contract and obtain scientific design approval.
 - For VASP input preparation, review, or submission, hand off to `vasp-workflow`.
 - For completed-output extraction and plotting, hand off to `vasp-analysis`.

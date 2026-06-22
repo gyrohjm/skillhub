@@ -34,6 +34,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     review_status TEXT NOT NULL DEFAULT 'NEEDS_REVIEW',
     review_note TEXT,
     notes TEXT,
+    design_id TEXT,
+    design_revision INTEGER,
+    design_matrix_id TEXT,
     result_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -82,6 +85,14 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
 def init_db(db_path: str | Path) -> None:
     with connect(db_path) as conn:
         conn.executescript(SCHEMA)
+        existing = {row["name"] for row in conn.execute("PRAGMA table_info(tasks)")}
+        for name, column_type in (
+            ("design_id", "TEXT"),
+            ("design_revision", "INTEGER"),
+            ("design_matrix_id", "TEXT"),
+        ):
+            if name not in existing:
+                conn.execute(f"ALTER TABLE tasks ADD COLUMN {name} {column_type}")
 
 
 def row_dict(row: sqlite3.Row | None) -> dict[str, Any]:
@@ -194,6 +205,9 @@ def update_task(
         "review_status",
         "review_note",
         "notes",
+        "design_id",
+        "design_revision",
+        "design_matrix_id",
         "result_json",
         "archived_at",
     }

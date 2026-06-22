@@ -1,0 +1,6 @@
+{
+  "token": "在此填入你的 MinerU API Token",
+  "base_url": "https://mineru.net/api/v4",
+  "output_root": "D:\\yychen\\MinerU\\output",
+  "model_version": "vlm"
+}

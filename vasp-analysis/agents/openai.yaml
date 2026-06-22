@@ -1,4 +1,4 @@
 interface:
   display_name: "VASP Analysis"
   short_description: "Process and analyze completed VASP outputs"
-  default_prompt: "Use $vasp-analysis to extract validated .dat data, generate figures, interpret completed VASP outputs, and write an analysis report."
+  default_prompt: "Use $vasp-analysis to extract validated .dat data, generate figures, evaluate approved design observables, write an analysis report, and return proposed new calculations to $computation-design as a change request."

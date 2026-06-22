@@ -8,6 +8,9 @@ K-path, or resource envelope before the job enters Slurm.
 - `Workflow`: calculation stage, upstream dependency, and whether the dependency
   follows the approved order: `test -> relax -> electronic/scf -> downstream`.
   For phonon, state the relaxed `CONTCAR` source explicitly.
+- `Scientific design`: status, design ID, revision, approved matrix ID, task
+  class, design/approval SHA256, and case snapshot path. State explicitly that
+  scientific design approval does not authorize `sbatch`.
 - `POSCAR`: source path, generation method, SHA256, whether it comes from
   relax, SCF, phonopy displacement, or user input, lattice constants/lattice
   vector lengths, atom counts, coordinate mode, selective-dynamics/fixed-atom
@@ -58,6 +61,9 @@ explicit `preapproved_by_workflow: true` stage entry from the initial reviewed
 workflow envelope. For workflow preapproval, current inputs/resources must match
 the hashes recorded in `task_spec.json` or `state.json`. Do not treat the
 existence of an old review as approval when the inputs or resources changed.
+Automatic submission also requires approved scientific design provenance in
+the stage `task_spec.json` or `state.json`; exploratory/untracked tasks must
+block even if a submit review was approved.
 
 For automatic workflow handoff, a workflow-level approval may authorize the
 intended dependency graph and resource envelopes, including SCF and downstream

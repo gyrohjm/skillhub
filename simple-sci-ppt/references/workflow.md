@@ -4,13 +4,14 @@ Use this file for the common deck-generation sequence. Load the specialized refe
 
 ## Source Priority
 
+0. `talk_plan.md` from `sci-talk-planning` (if available).
 1. User-specified PPT/PDF/MD/Jupyter files.
 2. User-provided reference decks or accepted prior decks as style anchors.
 3. Reference folders containing papers, figures, notes, BibTeX/RIS files, notebooks, and code outputs.
 4. Lecture notes, papers, reports, experiment records, notebooks, figures, and code outputs.
 5. Existing generated markdown plans, notebooks, and figures.
 
-If the user identifies an authoritative source, extract statements, formulas, and figures from that source first.
+If a `talk_plan.md` is available, it takes priority for narrative-level decisions (deck mode, audience, narrative arc, claim-evidence matrix, material priorities). Do not re-derive these. If the user identifies an authoritative source, extract statements, formulas, and figures from that source first.
 
 ## Reference Routing
 
@@ -24,12 +25,23 @@ If the user identifies an authoritative source, extract statements, formulas, an
 
 ## Common Sequence
 
-1. Decide deck mode and slide scope.
-2. Inventory and extract source facts.
-3. Select deck language. Use Chinese by default unless the user explicitly requests English or another target language.
+0. If a `talk_plan.md` from `sci-talk-planning` is available, read it first.
+   Use its narrative arc, claim-evidence matrix, material priorities, and
+   audience profile as input for the slide plan. If no talk plan exists,
+   ask the user for minimum context (core argument, audience, time).
+1. Confirm deck mode and slide scope. If a talk plan exists, use its
+   `recommended_deck_mode` and `approx_slide_count`. If not, determine
+   from user input.
+2. Inventory and extract source facts. If a talk plan exists, import its
+   material priority list and keep only slide-relevant assignments.
+3. Select deck language. If a talk plan exists, use its `language` field.
+   Otherwise use Chinese by default unless the user explicitly requests
+   another language.
 4. Create one markdown planning document before writing slide content.
-5. Write the deck outline in that same markdown document.
-6. Review the outline for storyline, source coverage, slide count, and the final conclusion slide.
+5. Write the slide outline in that same markdown document. If a talk plan
+   exists, map its narrative arc sections to specific slides.
+6. Review the slide outline for source coverage, slide count, and the
+   final conclusion slide.
 7. Expand the outline into a slide-level content plan in the same markdown document.
 8. For every ordinary content slide, select one layout archetype from `layout-archetypes.md` before writing generator code.
 9. For every ordinary content slide, write a layout box table with `slide`, `archetype`, `object_id`, `role`, `x`, `y`, `w`, `h`, and `expected_content`.
@@ -56,7 +68,7 @@ If the user identifies an authoritative source, extract statements, formulas, an
 Default route:
 
 ```text
-single markdown plan with outline and expanded content -> language selection with Chinese default -> layout archetype selection + layout box table -> visual source traceability table -> anti-AI writing pass -> pptxgenjs generator -> cover + outline slide + content slides + conclusion slide -> MathJax/formula image assets + speaker notes with LaTeX source and Image sources -> PPTX -> PowerPoint preview -> AI review iterations
+talk_plan.md (if available) -> slide markdown plan with imported sections 1-3 -> slide outline (mapped from talk plan sections) -> expanded content -> layout archetype selection + layout box table -> visual source traceability table -> anti-AI writing pass -> pptxgenjs generator -> cover + outline slide + content slides + conclusion slide -> MathJax/formula image assets + speaker notes with LaTeX source and Image sources -> PPTX -> PowerPoint preview -> AI review iterations
 ```
 
 Do not default to artifact-tool, Python PPTX mutation, direct OOXML edits, or Markdown-only compilation for this skill.

@@ -1,6 +1,6 @@
 ---
 name: vasp-work-manager
-description: "Records/archive layer for existing VASP calculation work: register, record, archive, report, and verify tasks without creating, submitting, recovering, or changing calculations. Use when importing tasks into a lightweight ledger, preserving workflow tasksets, state.json, task_spec.json, submission_review.dat, queue logs, core input/output files, .dat plot data, figures, manifests, SHA256 checksums, archive versions, and task history for nmg/Phoenix/G3 work; also use when auditing archive integrity, reporting the task database, updating project summaries, or planning safe data cleanup. Do not use for VASP input generation, Slurm submission, runtime recovery, resource changes, or scientific data analysis; hand those to vasp-workflow and vasp-analysis."
+description: "Records/archive layer for existing VASP calculation work: register, record, archive, report, and verify tasks without creating, submitting, recovering, or changing calculations. Use when preserving computation-design snapshots/approvals, workflow tasksets, state.json, task_spec.json, submission reviews, queue logs, core outputs, .dat data, figures, manifests, SHA256 checksums, archive versions, or task history for nmg/Phoenix/G3 work. Do not perform scientific design, VASP input generation, Slurm execution, recovery, or analysis; hand those to computation-design, vasp-workflow, and vasp-analysis."
 ---
 
 # VASP Work Manager
@@ -12,12 +12,15 @@ Keep the product small: archive directories with manifests and checksums are the
 source of truth; the SQLite ledger is the lightweight task registry and event
 record. Use `vasp-workflow`, not this skill, for the running/orchestration layer
 that prepares inputs, submits jobs, monitors queues, or performs recovery.
+Use `computation-design` for scientific experiment design and revisions; this
+skill only preserves the resulting snapshots and approvals.
 
 ## Skill Boundary
 
 - Owns: task registration/import, ledger updates, task notes/review status,
   archive manifests, SHA256 checksums, archive verification, task reports,
-  plot-data retention, and cleanup planning from recorded evidence.
+  scientific design provenance retention, plot-data retention, and cleanup
+  planning from recorded evidence.
 - Does not own: creating POSCAR/INCAR/KPOINTS/POTCAR/job scripts, submitting or
   recovering Slurm jobs, calling cluster resources, choosing scientific
   parameters, extracting numeric plot arrays, drawing figures, or interpreting
@@ -52,6 +55,16 @@ that prepares inputs, submits jobs, monitors queues, or performs recovery.
 - Preserve workflow handoff files such as `task_spec.json`, `state.json`,
   `submission_review.dat`, `submission_approval.json`, and `queue.log` when
   they exist.
+- Preserve `design/<design_id>/rNNNN/` snapshots, scientific `approval.json`,
+  and `analysis/reports/design_change_request.json`. Record design ID,
+  revision, matrix ID, and hashes without changing the design.
+- When the source project contains `docs/records/task_logs/`, append factual
+  manager events to `project_log.md` and the current `daily/YYYY-MM-DD.md`
+  after registration, status changes, archive creation, or checksum
+  verification; create today's daily file from the local format if absent.
+  Record task/case, action, status, ledger/archive evidence, and next action;
+  complete the daily closeout before ending work. Do not fabricate status or
+  duplicate raw outputs in Markdown.
 - On clusters, do not create project-level `raw_data/` or `formal_data/`.
   Preserve calculation outputs in their source case, keep processed data under
   that case's `analysis/` directory, and summarize paths/status/conclusions in
@@ -154,6 +167,8 @@ rsync -av --exclude manifest.json --exclude SHA256SUMS \
   figures.
 - `references/skill-contract.md`: handoff boundaries between `vasp-workflow`,
   `vasp-work-manager`, and `vasp-analysis`.
+- `references/task-logs.md`: local project total/daily task-log triggers and
+  required fields.
 - `references/clusters-nmg.md`: nmg cluster paths, SSH alias, Nano/Nanod
   assumptions, and safe test workspace.
 - `references/clusters-phoenix.md`: Phoenix CPU/GPU checks, module/resource

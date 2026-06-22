@@ -1,41 +1,42 @@
-# Project Specification Schema
+# 项目规范 Schema
 
-Write a UTF-8 JSON file. Content should be bilingual Chinese/English by default; keys remain English.
+写入 UTF-8 JSON。JSON key、枚举、slug 和专业参数名保持英文；面向人的字段值默认
+使用中文，不重复提供英文翻译。
 
-## Required Fields
+## 必填字段
 
 ```json
 {
-  "project_name": "中文名称 / English name",
+  "project_name": "中文项目名称",
   "project_slug": "english_lowercase_snake_case",
   "mode": "generic | experimental | computational | hybrid",
-  "domain": "research domain",
-  "summary": "One-sentence project goal / 一句话目标",
+  "domain": "研究领域",
+  "summary": "一句话项目目标",
   "research_questions": ["Q1 ..."],
   "hypotheses": [
     {
       "id": "H1",
-      "statement": "Testable statement / 可检验陈述",
-      "falsification": "Observation that would reject it / 否证条件"
+      "statement": "可检验陈述",
+      "falsification": "能够否证该假设的观察结果"
     }
   ],
   "objectives": [
     {
       "id": "O1",
-      "description": "Executable objective / 可执行目标",
-      "success_criteria": "Measurable acceptance criterion / 可测验收标准"
+      "description": "可执行目标",
+      "success_criteria": "可测量的验收标准"
     }
   ]
 }
 ```
 
-## Optional Fields
+## 可选字段
 
 ```json
 {
-  "background": "Current scientific and project context",
-  "deliverables": ["paper figure", "validated dataset"],
-  "constraints": ["instrument time", "cluster allocation"],
+  "background": "当前科学背景和项目上下文",
+  "deliverables": ["论文图", "验证后的数据集"],
+  "constraints": ["仪器时间", "集群额度"],
   "experiment_plan": {
     "variables": [],
     "controls": [],
@@ -53,14 +54,14 @@ Write a UTF-8 JSON file. Content should be bilingual Chinese/English by default;
         "system_slug": "sic_bulk",
         "case_slug": "pbe_static_chain",
         "stages": ["relax", "scf", "band", "dos"],
-        "incar_inheritance": "SCF/band/DOS inherit reviewed relax electronic settings unless overridden here",
+        "incar_inheritance": "SCF/band/DOS 继承已审核的 relax 电子参数，除非在此处 override",
         "stage_overrides": {
           "scf": {"IBRION": -1, "NSW": 0, "LWAVE": ".TRUE.", "LCHARG": ".TRUE."}
         },
-        "kpoints_policy": "relax/scf/dos meshes and band path to be listed before production",
+        "kpoints_policy": "生产前明确 relax/scf/dos mesh 与 band path",
         "potcar_labels": {"Si": "Si", "C": "C"},
         "cluster_profile": "nmg | phoenix | phoenix-gpu-a100 | phoenix-gpu-g3 | generic",
-        "restart_link_policy": "link SCF CHGCAR/WAVECAR into downstream tasks with ln -s"
+        "restart_link_policy": "下游任务通过 ln -s 复用 SCF CHGCAR/WAVECAR"
       }
     ],
     "convergence": [],
@@ -85,24 +86,23 @@ Write a UTF-8 JSON file. Content should be bilingual Chinese/English by default;
     "sources": [],
     "pending_validation": []
   },
-  "terminology": {"term": "definition"}
+  "terminology": {"term": "定义"}
 }
 ```
 
-## Validation Rules
+## 校验规则
 
-- `project_slug` must match `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`.
-- Do not transliterate a Chinese project name mechanically. Propose an English slug and ask the user to confirm it.
-- `mode` controls optional experimental and calculation directories.
-- `systems` is optional. When present, `system_slug` and every `case_slug` must
-  use English `lowercase_snake_case`; the initializer pre-creates
-  `raw_data/calculations/<system_slug>/<case_slug>/` and
-  `formal_data/structures/<system_slug>/`.
-- If `systems` is absent, create only `raw_data/calculations/` and add system
-  directories later using the same naming rule.
-- Every hypothesis needs a falsification condition.
-- Every objective needs measurable success criteria.
-- For VASP projects, `computation_plan.vasp_workflow_envelope` should be filled
-  before production. It defines which downstream stages can reuse the initial
-  workflow approval and which changes require a new review.
-- Unknown values remain explicit `TBD` items; do not fabricate them.
+- `project_slug` 必须匹配 `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`。
+- 不得机械音译中文项目名；提出简短英文 slug 并请用户确认。
+- `mode` 控制可选实验和计算目录。
+- `systems` 可选。提供时，`system_slug` 和每个 `case_slug` 必须使用英文
+  `lowercase_snake_case`；初始化器会预创建
+  `raw_data/calculations/<system_slug>/<case_slug>/` 和
+  `formal_data/structures/<system_slug>/`。
+- 未提供 `systems` 时只创建 `raw_data/calculations/`，后续按同一命名规则新增体系。
+- 每个 hypothesis 必须有 falsification condition。
+- 每个 objective 必须有可测量的 success criteria。
+- VASP 项目生产前应填写 `computation_plan.vasp_workflow_envelope`。初始化器会将其
+  转为 `docs/plans/calculation_design.json` 草案，再由 `computation-design` 补全
+  hypothesis、observable、control、收敛/验证、evidence、误差和批准 scope。
+- 未知内容使用“待补充”明确标记，不得编造。

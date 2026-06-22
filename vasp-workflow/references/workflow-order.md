@@ -7,6 +7,10 @@ scientific dependency:
 structure -> test -> relax -> electronic/scf -> downstream electronic/phonon -> analysis -> manager archive/records
 ```
 
+Before production preparation, use `computation-design` to approve the relevant
+calculation-matrix scope. Tasks prepared without that design provenance remain
+exploratory and must not be promoted automatically.
+
 - `structure/`: original, researched, or generated structure. If the user only
   gives a formula/material name or is unsure of the phase, follow
   `structure-research.md` before writing `POSCAR.initial`. Confirm lattice

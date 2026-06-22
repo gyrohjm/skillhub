@@ -1,12 +1,12 @@
-# Formal Data / 正式数据
+# 正式数据
 
-This directory contains only validated, user-approved, publication-ready artifacts.
+本目录只保存经过验证、用户批准并可用于正式成果的产物。
 
-## Rules
+## 规则
 
-- Preserve source data in `raw_data`.
-- Reproduce artifacts with code in `code` before promotion.
-- Preview promotion with `promote_formal_data.py --dry-run`.
-- Require explicit user approval before `--approve`.
-- Never overwrite an existing artifact.
-- Record every artifact in `MANIFEST.csv`.
+- 来源数据保留在 `raw_data`。
+- promotion 前必须能用 `code` 中的代码复现产物。
+- 先运行 `promote_formal_data.py --dry-run` 预览。
+- 仅在用户明确批准后使用 `--approve`。
+- 不覆盖既有产物。
+- 每项产物都登记到 `MANIFEST.csv`。

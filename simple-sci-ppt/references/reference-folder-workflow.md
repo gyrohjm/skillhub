@@ -2,17 +2,31 @@
 
 Use this when the user provides a folder such as `refs/` with papers, images, notes, data, code, notebooks, or previous slides and asks for a group meeting, literature report, paper reading, or research update deck.
 
+## Narrative Design
+
+Narrative storyline design for group meeting decks is owned by
+`sci-talk-planning`. If a `talk_plan.md` is available, use its narrative
+arc, claim-evidence matrix, and material priorities as input for the
+slide plan. Do not re-derive the storyline.
+
+If no `talk_plan.md` is available, ask the user for minimum context
+(core argument, audience, time) and proceed with a lightweight inline
+version. The storyline structure below can serve as a reference template
+for the inline case.
+
 ## Required Flow
 
-1. Run `scripts/inventory_refs.py <refs-folder> --out <plan-dir>/refs_inventory.md`.
-2. Classify materials into papers, figures, notes, datasets/code, and previous slides.
-3. Extract paper metadata: title, authors, year, journal/conference, DOI/arXiv ID if available, research question, method, main result, and limitation.
-4. Inspect figures and captions. Mark each candidate image as evidence, mechanism, workflow, result comparison, or background illustration.
-5. For PDF-derived visuals, render every candidate page to an image screenshot and inspect that screenshot before deciding the crop or placeholder.
-6. Crop paper figures directly from PDF-rendered pages before PPT insertion. Use `scripts/crop_pdf_figure.py` for reproducible crops.
-7. Build a markdown plan with source inventory, claim-evidence map, selected figures, comparison tables, visual-object traceability, rendered PDF page screenshots, speaker notes, and slide-by-slide storyline.
-8. Generate the PPTX with `pptxgenjs`.
-9. Run the AI review loop in `qa-iteration.md`.
+1. If a `talk_plan.md` exists, read it first. Import its material
+   priorities and claim-evidence matrix.
+2. Run `scripts/inventory_refs.py <refs-folder> --out <plan-dir>/refs_inventory.md`.
+3. Classify materials into papers, figures, notes, datasets/code, and previous slides.
+4. Extract paper metadata: title, authors, year, journal/conference, DOI/arXiv ID if available, research question, method, main result, and limitation.
+5. Inspect figures and captions. Mark each candidate image as evidence, mechanism, workflow, result comparison, or background illustration.
+6. For PDF-derived visuals, render every candidate page to an image screenshot and inspect that screenshot before deciding the crop or placeholder.
+7. Crop paper figures directly from PDF-rendered pages before PPT insertion. Use `scripts/crop_pdf_figure.py` for reproducible crops.
+8. Build a slide-level markdown plan with source inventory (imported from talk plan if available), claim-evidence map (imported from talk plan if available), selected figures, comparison tables, visual-object traceability, rendered PDF page screenshots, speaker notes, and slide-by-slide outline.
+9. Generate the PPTX with `pptxgenjs`.
+10. Run the AI review loop in `qa-iteration.md`.
 
 ## Paper Figure Crops
 
@@ -48,9 +62,10 @@ Placeholder frame requirements:
 - Keep the placeholder inside a figure card at the same size and position where the final image should appear.
 - Record the rendered page screenshot path in the speaker notes when available; if unavailable, record the rendering failure reason.
 
-## Group Meeting Storyline
+## Group Meeting Storyline Reference
 
-Prefer this structure:
+When no `talk_plan.md` is available and a lightweight inline storyline
+is needed, prefer this structure:
 
 1. Research question and source set.
 2. Background and unresolved problem.
@@ -60,7 +75,8 @@ Prefer this structure:
 6. Limitations and discussion points.
 7. Next experiment/calculation or reading target.
 
-Avoid paper-by-paper summary unless explicitly requested. Select claims and figures that support the storyline.
+Avoid paper-by-paper summary unless explicitly requested. Select claims
+and figures that support the storyline.
 
 For group meeting decks, prefer:
 
