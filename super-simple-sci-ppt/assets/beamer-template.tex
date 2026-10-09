@@ -1,0 +1,26 @@
+% !TeX program = xelatex
+% Minimal Metropolis scientific presentation starter; explicit user templates take priority.
+% Add only the frames needed by the actual talk; no mandatory cover/TOC/thank-you.
+\documentclass[aspectratio=169,10pt]{beamer}
+\usetheme{metropolis}
+\metroset{progressbar=frametitle,numbering=fraction,sectionpage=progressbar}
+\usefonttheme{professionalfonts}
+\beamertemplatenavigationsymbolsempty
+\usepackage{ctex,fontspec,graphicx,amsmath,amssymb,booktabs,array,ragged2e}
+\IfFontExistsTF{Times New Roman}{\setmainfont{Times New Roman}}{\setmainfont{TeX Gyre Termes}}
+\IfFontExistsTF{Noto Serif CJK SC}{\setCJKmainfont{Noto Serif CJK SC}}{}
+\IfFontExistsTF{Noto Sans CJK SC}{\setCJKsansfont{Noto Sans CJK SC}}{}
+\graphicspath{{fig/}}
+\setbeamersize{text margin left=7mm,text margin right=7mm}
+\setbeamercolor{alerted text}{fg=orange!85!black}
+\setbeamertemplate{frametitle continuation}{}
+\renewcommand{\figurename}{图}
+\setbeamertemplate{caption}{\raggedright\scriptsize 图\insertcaptionnumber：\insertcaption\par}
+\setlength{\abovecaptionskip}{0.25em}
+\setlength{\belowcaptionskip}{0pt}
+\setlength{\parskip}{2.4pt}
+\renewcommand{\arraystretch}{1.12}
+\linespread{1.02}
+\begin{document}
+% Insert source-grounded frames here. Do not fill a layout with invented results.
+\end{document}

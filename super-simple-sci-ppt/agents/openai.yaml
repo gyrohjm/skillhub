@@ -1,0 +1,4 @@
+interface:
+  display_name: "极简科研汇报 PPT / Beamer"
+  short_description: "制作和验收极简科研汇报，支持可编辑 PPTX 与 Beamer 并保留既有修改"
+  default_prompt: "使用 $super-simple-sci-ppt 制作或修改科研汇报，保留实际底稿与科学证据；续作沿原格式，新作默认 PPTX。"
