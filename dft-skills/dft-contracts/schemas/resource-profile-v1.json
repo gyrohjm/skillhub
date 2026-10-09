@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/resource-profile-v1",
+  "title": "Cached lightweight DFT resource profile v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract",
+    "cache_status",
+    "checked_at",
+    "checks",
+    "invalidation_reason",
+    "approved_profile"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "dft.resource-profile.v1"},
+    "cache_status": {"enum": ["ready", "stale", "invalidated", "unknown"]},
+    "checked_at": {"type": "string", "format": "date-time"},
+    "checks": {
+      "type": "object",
+      "required": [
+        "scheduler_command",
+        "target_partition",
+        "approved_activation",
+        "approved_executable"
+      ],
+      "properties": {
+        "scheduler_command": {"$ref": "#/$defs/check"},
+        "target_partition": {"$ref": "#/$defs/check"},
+        "approved_activation": {"$ref": "#/$defs/check"},
+        "approved_executable": {"$ref": "#/$defs/check"}
+      },
+      "additionalProperties": true
+    },
+    "invalidation_reason": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "scheduler_rejection",
+        "partition_missing",
+        "activation_failure",
+        "executable_failure",
+        "repeated_environment_failure",
+        "agent_detected_cluster_drift"
+      ]
+    },
+    "approved_profile": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "check": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {"enum": ["passed", "failed", "unknown"]},
+        "detail": {"type": "string"},
+        "command": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

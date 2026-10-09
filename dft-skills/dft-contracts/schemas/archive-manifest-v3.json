@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/archive-manifest-v3",
+  "title": "DFT archive manifest v3",
+  "type": "object",
+  "required": ["schema", "engine", "project", "task", "source_path", "archive_path", "files", "calculation_fingerprint"],
+  "properties": {
+    "schema": {"const": "dft-work-manager.archive.v3"},
+    "engine": {"type": "string"},
+    "project": {"type": "string"},
+    "task": {"type": "string"},
+    "source_path": {"type": "string"},
+    "archive_path": {"type": "string"},
+    "files": {"type": "array", "items": {"type": "object"}},
+    "calculation_fingerprint": {"type": "object", "required": ["exact", "scientific"]},
+    "scientific_design": {"type": "object"}
+  },
+  "additionalProperties": true
+}
+

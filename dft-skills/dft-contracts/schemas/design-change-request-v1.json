@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/design-change-request-v1",
+  "title": "DFT design change request v1",
+  "type": "object",
+  "required": ["schema_version", "status", "source_design", "verdict", "trigger", "proposed_change", "scientific_reason", "evidence_paths", "requested_action"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"enum": ["proposed", "accepted", "rejected", "superseded"]},
+    "source_design": {"type": "object"},
+    "verdict": {"enum": ["supported", "falsified", "inconclusive"]},
+    "trigger": {"type": "string", "minLength": 1},
+    "proposed_change": {"type": "string", "minLength": 1},
+    "scientific_reason": {"type": "string", "minLength": 1},
+    "evidence_paths": {"type": "array", "items": {"type": "string"}},
+    "requested_action": {"type": "string", "minLength": 1}
+  },
+  "additionalProperties": true
+}
+

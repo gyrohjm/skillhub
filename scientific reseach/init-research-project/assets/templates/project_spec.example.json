@@ -1,0 +1,58 @@
+{
+  "project_name": "钠插层石墨烯界面",
+  "project_slug": "na_intercalation_interface",
+  "mode": "hybrid",
+  "domain": "计算材料科学",
+  "summary": "阐明 Na 插层对界面结构和电子性质的影响",
+  "background": "待补充",
+  "research_questions": [
+    "哪些插层位点稳定且具有实验可实现性？"
+  ],
+  "hypotheses": [
+    {
+      "id": "H1",
+      "statement": "Na 插层使 graphene 与 substrate 解耦",
+      "falsification": "interface coupling observable 没有可重复降低"
+    }
+  ],
+  "objectives": [
+    {
+      "id": "O1",
+      "description": "在收敛参数下比较候选 Na 位点",
+      "success_criteria": "所有候选结构使用同一套经验证的计算 protocol"
+    }
+  ],
+  "deliverables": ["验证后的结构", "可用于论文的 plot data"],
+  "constraints": ["待补充"],
+  "computation_plan": {
+    "models": ["Na 插层 graphene interface 候选结构"],
+    "methods": ["VASP PBE relax -> SCF -> band/DOS"],
+    "parameter_matrix": ["ENCUT 与 KPOINTS 收敛测试待补充"],
+    "engine_workflow_envelope": [
+      {
+        "engine": "vasp",
+        "system_slug": "na_graphene_interface",
+        "case_slug": "pbe_static_chain",
+        "stages": ["relax", "scf", "band", "dos"],
+        "parameter_policy": "SCF/band/DOS 继承初始 protocol 中已审核的电子参数，除非在 stage_overrides 中列出",
+        "stage_overrides": {
+          "scf": {"IBRION": -1, "NSW": 0, "LWAVE": ".TRUE.", "LCHARG": ".TRUE."}
+        },
+        "kpoints_policy": "生产计算前确定 mesh 和 band path",
+        "pseudopotential_policy": {"family": "PBE PAW", "labels": {"Na": "Na_pv", "C": "C"}},
+        "cluster_profile": "nmg",
+        "restart_link_policy": "下游任务用 ln -s 链接 SCF 的 CHGCAR/WAVECAR"
+      }
+    ],
+    "convergence": ["relax 经 parser/review 确认 ionic convergence 后才进入 SCF"],
+    "validation": ["比较候选结构合理性与 electronic output"],
+    "resource_budget": "待补充",
+    "stop_conditions": ["超出 convergence/resource envelope 且未重新审核时停止"]
+  },
+  "systems": [
+    {
+      "system_slug": "na_graphene_interface",
+      "case_slugs": ["relax_pbe", "scf_pbe"]
+    }
+  ]
+}

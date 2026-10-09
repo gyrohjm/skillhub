@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Teach"
+  short_description: "Research, map evidence, and learn from verified sources"
+  default_prompt: "Use $research-teach to initialize this project for research and guided learning."

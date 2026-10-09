@@ -1,0 +1,26 @@
+{
+  "name": "research-teach",
+  "version": "0.1.0+codex.20260725095654",
+  "description": "Local-first literature research, Obsidian knowledge mapping, personalized teaching, and DOTE-aware DFT project tutoring.",
+  "author": {
+    "name": "gyro"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Research Teach",
+    "shortDescription": "Research, build evidence maps, and learn locally.",
+    "longDescription": "Plan literature searches with confirmation gates, download through an authenticated browser, convert sources with MinerU or OpenDataLoader, build an Obsidian knowledge graph, and teach from verified project and DFT calculation sources using an approved learner profile.",
+    "developerName": "gyro",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Initialize this project for research and guided learning.",
+      "Build an evidence-backed knowledge map from these papers.",
+      "Teach me this project topic from foundations to depth.",
+      "Use the DOTE knowledge base to teach me this DFT calculation."
+    ]
+  }
+}

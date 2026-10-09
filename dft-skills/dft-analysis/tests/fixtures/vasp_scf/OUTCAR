@@ -1,0 +1,18 @@
+ vasp.5.4.4.18Apr17-6-g9f103f2a35 (build Mar 12 2025 17:14:30) complex
+   number of ions     NIONS =      2
+   NSW    =      0    number of steps for IOM
+   IBRION =     -1    ionic relax: 0-MD 1-quasi-New 2-CG
+ number of electron       8.0000000 magnetization       0.0000000
+ aborting loop because EDIFF is reached
+ E-fermi :  -2.7244     XC(G=0):  -2.2092     alpha+bet : -1.9124
+  in kB       7.00625     7.00625    -0.15922     0.00000     0.00000     0.00000
+ POSITION                                       TOTAL-FORCE (eV/Angst)
+ -----------------------------------------------------------------------------------
+      0.00000      0.00000     10.00000         0.000000     -0.000000     -0.000000
+     -0.00000      1.42028     10.00000        -0.000000      0.000000      0.000000
+ -----------------------------------------------------------------------------------
+  free  energy   TOTEN  =       -18.44422599 eV
+  energy  without entropy=      -18.44372449  energy(sigma->0) =      -18.44397524
+                         Elapsed time (sec):       18.325
+                 Voluntary context switches:         2429
+

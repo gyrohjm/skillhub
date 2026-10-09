@@ -1,0 +1,4 @@
+interface:
+  display_name: "DOTE Tutor"
+  short_description: "Teach DFT from verified project evidence and calculations."
+  default_prompt: "Teach me this DFT project from the verified knowledge base and my current level."

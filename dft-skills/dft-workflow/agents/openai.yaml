@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Workflow"
+  short_description: "Orchestrate reviewed, engine-aware DFT calculations"
+  default_prompt: "Use $dft-workflow to discover the current project root, verify one approved $dft-design history.jsonl event, prepare the canonical composition/structure/numbered-task leaf with exact VASP or prebuilt QE inputs, and render job.sh only from an approved docs/project-resources.md profile whose environment method is either reviewed modules or a reviewed source script. Maintain one workflow.json and keep preparation separate from explicit submission approval."

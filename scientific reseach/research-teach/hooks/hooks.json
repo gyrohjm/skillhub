@@ -1,0 +1,55 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/hooks/research_context.py\"",
+            "timeout": 15,
+            "statusMessage": "Detecting research project"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/hooks/research_context.py\"",
+            "timeout": 15,
+            "statusMessage": "Loading approved research context"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/hooks/global_guard.py\"",
+            "timeout": 15,
+            "statusMessage": "Protecting global learner context"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${PLUGIN_ROOT}/hooks/checkpoint.py\"",
+            "timeout": 15,
+            "statusMessage": "Checkpointing research state"
+          }
+        ]
+      }
+    ]
+  }
+}

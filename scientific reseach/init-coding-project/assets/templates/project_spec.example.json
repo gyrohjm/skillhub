@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "project_name": "示例服务",
+  "project_slug": "example-service",
+  "summary": "为内部客户端提供可验证的示例 API",
+  "documentation_language": "zh-CN",
+  "project_types": ["service"],
+  "problem": "现有调用缺少稳定、可测试的接口",
+  "target_users": ["内部应用开发者"],
+  "goals": [
+    {
+      "id": "G1",
+      "description": "提供一个端到端可调用的 API",
+      "success_criteria": ["契约测试通过", "CI 中测试、lint 和 typecheck 全部通过"]
+    }
+  ],
+  "scope": {
+    "in": ["单一健康检查与示例资源接口"],
+    "out": ["用户认证", "公网部署"]
+  },
+  "stack": {
+    "languages": ["Python"],
+    "runtimes": ["Python 3.12"],
+    "frameworks": ["FastAPI"],
+    "package_manager": "uv",
+    "evidence": ["用户已确认新项目技术栈"]
+  },
+  "architecture": {
+    "style": "modular service",
+    "modules": ["HTTP adapter", "application core"],
+    "external_dependencies": [],
+    "pending_decisions": []
+  },
+  "quality": {
+    "commands": {
+      "setup": "uv sync",
+      "dev": "uv run fastapi dev",
+      "test": "uv run pytest",
+      "lint": "uv run ruff check .",
+      "typecheck": "uv run pyright",
+      "build": null
+    },
+    "testing_strategy": "通过 HTTP 接口 seam 验证外部行为",
+    "test_seams": ["HTTP interface"],
+    "ci_required": ["test", "lint", "typecheck"],
+    "non_functional_requirements": [],
+    "definition_of_done": ["验收标准通过", "文档与实现一致"]
+  },
+  "deliverables": ["可运行服务", "API 文档"],
+  "constraints": [],
+  "milestones": [],
+  "risks": [],
+  "documentation": {
+    "reports": false,
+    "presentations": false,
+    "assets": false,
+    "deliverables": false
+  },
+  "agent_instructions": {
+    "create_agents_md": true
+  },
+  "scaffold": {
+    "directories": ["src", "tests"],
+    "planned_commands": []
+  },
+  "external_operations": {
+    "web_research_approved": false,
+    "issue_tracker_sync": "disabled",
+    "remote_repository": "disabled"
+  },
+  "assumptions": [],
+  "open_questions": []
+}

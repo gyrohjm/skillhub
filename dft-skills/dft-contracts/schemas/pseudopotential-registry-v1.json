@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/pseudopotential-registry-v1",
+  "type": "object",
+  "required": ["schema_version", "datasets"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "family", "version", "xc_functional", "element", "label", "sha256", "license", "archive_allowed", "compatible_engines"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "family": {"type": "string"},
+          "version": {"type": "string"},
+          "xc_functional": {"type": "string"},
+          "element": {"type": "string"},
+          "label": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "license": {"type": "string"},
+          "archive_allowed": {"type": "boolean"},
+          "compatible_engines": {"type": "array", "items": {"type": "string"}},
+          "recommended_cutoff": {"type": ["object", "null"]},
+          "validated_cutoff": {"type": ["object", "null"]},
+          "relativistic": {"type": ["string", "null"]},
+          "valence_configuration": {"type": ["string", "null"]},
+          "citation": {"type": ["string", "null"]},
+          "local_path": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}
+

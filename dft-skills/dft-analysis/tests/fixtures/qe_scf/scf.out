@@ -1,0 +1,16 @@
+     Program PWSCF v.7.0 starts on 14Jul2026 at 15:55:44
+     number of atoms/cell      =            3
+     the Fermi energy is     9.0358 ev
+!    total energy              =    -164.34717526 Ry
+     convergence has been achieved in  10 iterations
+     Forces acting on atoms (cartesian axes, Ry/au):
+     atom    1 type  1   force =     0.00000000    0.00000000    0.00000000
+     atom    2 type  2   force =    -0.00000000   -0.00000000    0.00000000
+     atom    3 type  2   force =     0.00000001    0.00000000    0.00000000
+          total   stress  (Ry/bohr**3)                   (kbar)     P=        0.00
+  -0.00000005  -0.00000000   0.00000000           -0.01       -0.00        0.00
+  -0.00000000  -0.00000005   0.00000000           -0.00       -0.01        0.00
+   0.00000000  -0.00000000   0.00000015            0.00       -0.00        0.02
+     PWSCF        :     13.29s CPU     16.38s WALL
+   JOB DONE.
+

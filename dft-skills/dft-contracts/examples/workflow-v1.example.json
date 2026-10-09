@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "contract": "dft.workflow.v1",
+  "composition_slug": "mgb2",
+  "structure_slug": "ref_struct",
+  "task_slug": "p1_relax",
+  "variant_slug": "magmom_0",
+  "status": "prepared",
+  "engine": "quantum-espresso",
+  "updated_at": "2026-08-19T10:00:00+08:00",
+  "design": {
+    "scientific_design_approved": true,
+    "design_id": "mgb_sc",
+    "revision": 1,
+    "matrix_id": "M1",
+    "approval_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "inputs": [
+    {
+      "base": "task_root",
+      "path": "scf.in",
+      "role": "engine_input",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "base": "composition_root",
+      "path": "refs/pseudopotentials/Mg.UPF",
+      "role": "pseudopotential",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "submission": {
+    "approval_status": "not_requested",
+    "scheduler": "slurm",
+    "resources": {}
+  },
+  "result": {
+    "termination": "unknown",
+    "accepted": false
+  },
+  "analysis": {
+    "reports": []
+  },
+  "history": [
+    {
+      "at": "2026-08-19T10:00:00+08:00",
+      "status": "prepared",
+      "note": "Exact inputs prepared; submit review not yet approved."
+    }
+  ]
+}

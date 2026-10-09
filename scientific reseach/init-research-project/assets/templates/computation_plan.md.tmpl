@@ -1,0 +1,65 @@
+# 计算计划
+
+{{COMPUTATION_PLAN}}
+
+机器可读的科学设计合同为 `docs/plans/calculation_design.json`。生产任务创建前，
+使用 `dft-design` 完成、验证、修订并批准指定 calculation matrix scope。
+审批后在 `docs/records/design_reviews/<design_id>/rNNNN/` 生成不可变快照。
+
+## 必填执行记录
+
+```text
+task_id | hypothesis | model | method | parameter_set | convergence |
+validation | resource_budget | stop_condition | output_path
+```
+
+原始计算输入、输出及优化前后结构保存到
+`raw_data/calculations/<system_slug>/<case_slug>/`。准备与分析代码放到 `code/`。
+结构仅在明确批准后复制到 `formal_data/structures/<system_slug>/`。
+
+## DFT engine workflow 参数包
+
+生产 DFT 运行前完成本节。后续阶段只有在当前 envelope 内才可复用已有审批；
+engine、科学参数、结构来源、pseudopotential policy、k-point policy 或资源配置变化时必须重新审核。
+
+使用 `dft-design` 负责科学设计和 revision，`dft-workflow` 负责运行编排，
+`dft-work-manager` 负责记录归档，`dft-analysis` 负责输出处理、图表、报告和
+design change request。具体分工见 `AGENTS.md` 和 `CLAUDE.md`。
+
+新任务按计算对象而不是 engine 分类。case 顶层分类固定为：
+
+```text
+test/ | structure/ | energy/ | electronic/ | phonon/ |
+charge/ | magnetic/ | optics/ | wannier/ | analysis/
+```
+
+SCF 写入 `energy/scf/`；engine 写入 `task_spec.json` 等 metadata，不增加
+VASP/QE 目录层。旧项目路径只用于兼容读取，新任务不得继续写入旧路径。
+
+```text
+system_slug | case_slug | engine | stage | structure_source | parameter_policy |
+kpoints_policy | pseudopotential_policy | cluster_profile |
+resource_profile | completion_gate | downstream_inputs
+```
+
+每个 DFT engine chain 至少明确以下阶段；具体文件名和参数放入对应 backend：
+
+- `relax`：初始 POSCAR 来源、完整 INCAR、KPOINTS mesh、POTCAR label、`POSCAR-ini` 保留规则、收敛 gate 和允许续算次数。
+- `scf`：relax `CONTCAR` 来源、继承参数、静态计算 override（默认 `IBRION=-1`、`NSW=0`、`LWAVE=.TRUE.`、`LCHARG=.TRUE.`）、KPOINTS mesh 和收敛 gate。
+- `band`、`dos`：relax 结构来源、继承电子参数、K-path 或 DOS KPOINTS policy，以及需要时指向 SCF `CHGCAR`/`WAVECAR` 的符号链接。
+- `phonon` 等后续任务：relax 结构来源、finite-displacement 或 DFPT 设置、supercell、worker 数和力收敛 gate。
+
+SCF 大文件使用符号链接复用，不得复制：
+
+```bash
+# 以下相对路径适用于 <case_root>/electronic/band 和 <case_root>/electronic/dos
+ln -s ../../energy/scf/CHGCAR CHGCAR
+ln -s ../../energy/scf/WAVECAR WAVECAR
+```
+
+完成的 DFT 输出记录到 `raw_data/calculations/<system_slug>/<case_slug>/`。
+分析后的 `.dat` 和图仅在用户明确批准并登记 manifest 后进入 `formal_data`。
+
+以上路径属于本地科研项目。集群不创建第二套 `raw_data/`，输出保留在 calculation
+case，处理数据、图和报告写入 `<case_root>/analysis/`，项目级路径与结论汇总到
+`<cluster_project_root>/docs/project_summary.md`。

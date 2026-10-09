@@ -1,0 +1,311 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/calculation-design-v2",
+  "title": "DFT calculation design v2",
+  "type": "object",
+  "required": ["schema_version", "design_id", "revision", "status", "systems", "calculation_matrix", "engine_stage_envelopes"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "design_id": {"type": "string", "minLength": 1},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["draft", "ready_for_review", "approved", "superseded"]},
+    "design_mode": {"enum": ["task", "research"]},
+    "systems": {"type": "array", "items": {"type": "object"}},
+    "observables": {"type": "array", "items": {"type": "object"}},
+    "convergence_studies": {"type": "array", "items": {"type": "object"}},
+    "calculation_matrix": {"type": "array", "items": {"type": "object"}},
+    "engine_stage_envelopes": {"type": "array", "items": {"type": "object"}},
+    "stop_conditions": {"type": "array"},
+    "pending_decisions": {"type": "array"},
+    "execution_plan": {
+      "type": "object",
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["task_slug", "matrix_id", "stage", "engine", "dependencies", "inputs"],
+            "properties": {
+              "task_slug": {
+                "type": "string",
+                "pattern": "^(?:p[0-9]+|[0-9]{2,})(?:_[a-z0-9][a-z0-9_-]*)?$"
+              },
+              "matrix_id": {"type": "string", "minLength": 1},
+              "stage": {"type": "string", "minLength": 1},
+              "engine": {
+                "enum": ["vasp", "quantum-espresso", "cp2k", "abinit", "gpaw", "other"]
+              },
+              "dependencies": {
+                "type": "array",
+                "items": {"type": "string", "minLength": 1}
+              },
+              "inputs": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/execution_input"}
+              },
+              "job_script": {"$ref": "#/$defs/relative_path"}
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["design_mode"],
+        "properties": {"design_mode": {"const": "task"}}
+      },
+      "then": {
+        "required": [
+          "design_mode",
+          "project_slug",
+          "title",
+          "execution_plan",
+          "stop_conditions",
+          "pending_decisions"
+        ],
+        "properties": {
+          "systems": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/task_system"}
+          },
+          "calculation_matrix": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/task_matrix"}
+          },
+          "engine_stage_envelopes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/task_engine_envelope"}
+          },
+          "execution_plan": {"$ref": "#/$defs/task_execution_plan"},
+          "stop_conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["design_mode"],
+        "properties": {"design_mode": {"const": "research"}}
+      },
+      "then": {
+        "required": [
+          "research_questions",
+          "hypotheses",
+          "observables",
+          "controls",
+          "convergence_studies",
+          "validation_checks",
+          "evidence",
+          "uncertainty_budget",
+          "resource_budget",
+          "stop_conditions"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": true,
+  "$defs": {
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+$"
+    },
+    "execution_input": {
+      "type": "object",
+      "required": ["name", "mode"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "mode": {"enum": ["static", "recipe"]},
+        "source": {"$ref": "#/$defs/relative_path"},
+        "source_task": {"type": "string", "minLength": 1},
+        "artifact": {"$ref": "#/$defs/relative_path"}
+      },
+      "additionalProperties": true
+    },
+    "task_execution_input": {
+      "oneOf": [
+        {
+          "allOf": [
+            {"$ref": "#/$defs/execution_input"},
+            {
+              "required": ["source"],
+              "properties": {"mode": {"const": "static"}},
+              "not": {
+                "anyOf": [
+                  {"required": ["source_task"]},
+                  {"required": ["artifact"]}
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/execution_input"},
+            {
+              "required": ["source_task", "artifact"],
+              "properties": {"mode": {"const": "recipe"}},
+              "not": {"required": ["source"]}
+            }
+          ]
+        }
+      ]
+    },
+    "task_system": {
+      "type": "object",
+      "required": ["system_slug", "model", "structure_provenance", "assumptions"],
+      "properties": {
+        "system_slug": {"type": "string", "minLength": 1},
+        "model": {"type": "string", "minLength": 1},
+        "structure_provenance": {"type": "string", "minLength": 1},
+        "assumptions": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "task_matrix": {
+      "type": "object",
+      "required": [
+        "id",
+        "class",
+        "system_slug",
+        "case_slug",
+        "purpose",
+        "variables",
+        "fixed_parameters",
+        "stages",
+        "completion_gate"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "class": {"enum": ["exploratory", "convergence", "validation", "production"]},
+        "system_slug": {"type": "string", "minLength": 1},
+        "case_slug": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "variables": {"type": "object"},
+        "fixed_parameters": {"type": "object"},
+        "stages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "completion_gate": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "task_parameter": {
+      "type": "object",
+      "required": ["status", "method", "source_metadata", "selected_value"],
+      "properties": {
+        "status": {"enum": ["user_specified", "validated"]},
+        "method": {"type": "string", "minLength": 1},
+        "source_metadata": {"type": "object", "minProperties": 1},
+        "candidate_values": {"type": "array"},
+        "units": {"type": "string", "minLength": 1},
+        "fixed_conditions": {"type": "array"},
+        "target_observable_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "acceptance_rule": {"type": "string", "minLength": 1},
+        "selected_value": {"not": {"type": "null"}},
+        "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}}
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["status"],
+            "properties": {"status": {"const": "validated"}}
+          },
+          "then": {
+            "required": [
+              "candidate_values",
+              "units",
+              "fixed_conditions",
+              "target_observable_ids",
+              "acceptance_rule",
+              "evidence_refs"
+            ],
+            "properties": {
+              "candidate_values": {"type": "array", "minItems": 1},
+              "fixed_conditions": {"type": "array", "minItems": 1},
+              "target_observable_ids": {"type": "array", "minItems": 1},
+              "evidence_refs": {"type": "array", "minItems": 1}
+            }
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "task_parameter_selection": {
+      "type": "object",
+      "required": ["basis_cutoff", "occupations", "kpoints"],
+      "properties": {
+        "basis_cutoff": {"$ref": "#/$defs/task_parameter"},
+        "occupations": {"$ref": "#/$defs/task_parameter"},
+        "kpoints": {"$ref": "#/$defs/task_parameter"}
+      },
+      "additionalProperties": true
+    },
+    "task_engine_envelope": {
+      "type": "object",
+      "required": [
+        "matrix_id",
+        "engine",
+        "structure_source",
+        "parameter_policy",
+        "kpoints_policy",
+        "pseudopotential_policy",
+        "resource_profile",
+        "completion_gates",
+        "parameter_selection",
+        "engine_parameters"
+      ],
+      "properties": {
+        "matrix_id": {"type": "string", "minLength": 1},
+        "engine": {"enum": ["vasp", "quantum-espresso", "cp2k", "abinit", "gpaw", "other"]},
+        "structure_source": {"type": "string", "minLength": 1},
+        "parameter_policy": {"type": ["string", "object"], "minLength": 1},
+        "kpoints_policy": {"type": ["string", "object"], "minLength": 1},
+        "pseudopotential_policy": {"type": ["string", "object"], "minLength": 1},
+        "resource_profile": {"type": "string", "minLength": 1},
+        "completion_gates": {"type": "object", "minProperties": 1},
+        "parameter_selection": {"$ref": "#/$defs/task_parameter_selection"},
+        "engine_parameters": {"type": "object", "minProperties": 1}
+      },
+      "additionalProperties": true
+    },
+    "task_execution_plan": {
+      "type": "object",
+      "required": ["tasks"],
+      "properties": {
+        "tasks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["task_slug", "matrix_id", "stage", "engine", "dependencies", "inputs"],
+            "properties": {
+              "task_slug": {"type": "string", "pattern": "^(?:p[0-9]+|[0-9]{2,})(?:_[a-z0-9][a-z0-9_-]*)?$"},
+              "matrix_id": {"type": "string", "minLength": 1},
+              "stage": {"type": "string", "minLength": 1},
+              "engine": {"enum": ["vasp", "quantum-espresso", "cp2k", "abinit", "gpaw", "other"]},
+              "dependencies": {"type": "array", "items": {"type": "string", "minLength": 1}},
+              "inputs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/task_execution_input"}},
+              "job_script": {"$ref": "#/$defs/relative_path"}
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

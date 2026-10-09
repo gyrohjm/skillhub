@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/workflow-v2",
+  "title": "Canonical DFT workflow v2 leaf record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract",
+    "composition_slug",
+    "structure_slug",
+    "task_slug",
+    "status",
+    "engine",
+    "updated_at",
+    "design",
+    "inputs",
+    "dependencies",
+    "input_authority",
+    "parameter_reconciliation",
+    "resource_profile",
+    "attempts",
+    "submission",
+    "completion",
+    "lineage",
+    "history"
+  ],
+  "properties": {
+    "task_uuid": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "schema_version": {"const": 2},
+    "contract": {"const": "dft.workflow.v2"},
+    "composition_slug": {"$ref": "#/$defs/slug"},
+    "structure_slug": {"$ref": "#/$defs/slug"},
+    "task_slug": {
+      "type": "string",
+      "pattern": "^(?:p[0-9]+|[0-9]{2,})(?:_[a-z0-9][a-z0-9_-]*)?$"
+    },
+    "variant_slug": {"$ref": "#/$defs/slug"},
+    "status": {
+      "enum": [
+        "planned",
+        "awaiting_upstream",
+        "prepared",
+        "submitted",
+        "running",
+        "completed",
+        "failed",
+        "inconclusive",
+        "awaiting_user_decision",
+        "superseded"
+      ]
+    },
+    "engine": {
+      "enum": ["vasp", "quantum-espresso", "cp2k", "abinit", "gpaw", "other"]
+    },
+    "updated_at": {"type": "string", "format": "date-time"},
+    "design": {
+      "type": "object",
+      "required": ["design_id", "revision", "approval_ref", "baseline_parameter_hash"],
+      "properties": {
+        "design_id": {"type": "string", "minLength": 1},
+        "revision": {"type": "integer", "minimum": 1},
+        "approval_ref": {"type": ["string", "null"], "minLength": 1},
+        "baseline_parameter_hash": {"$ref": "#/$defs/sha256"}
+      },
+      "additionalProperties": true
+    },
+    "inputs": {
+      "type": "object",
+      "required": ["materialization", "files"],
+      "properties": {
+        "materialization": {"enum": ["static", "recipe", "mixed"]},
+        "files": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/file_reference"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/dependency"}
+    },
+    "input_authority": {"type": "object", "additionalProperties": true},
+    "parameter_reconciliation": {
+      "type": "object",
+      "required": ["status", "changed_parameters", "affected_tasks"],
+      "properties": {
+        "status": {
+          "enum": [
+            "synchronized",
+            "adopted",
+            "propagated",
+            "pending_override",
+            "major_conflict",
+            "needs_agent"
+          ]
+        },
+        "changed_parameters": {
+          "type": "array",
+          "items": {"type": "object", "additionalProperties": true}
+        },
+        "affected_tasks": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": true
+    },
+    "resource_profile": {
+      "type": "object",
+      "required": ["ref", "overrides"],
+      "properties": {
+        "ref": {"type": "string", "minLength": 1},
+        "overrides": {"type": "object", "additionalProperties": true}
+      },
+      "additionalProperties": true
+    },
+    "attempts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/attempt"}
+    },
+    "submission": {
+      "type": "object",
+      "required": ["state", "allowed", "job_id"],
+      "properties": {
+        "state": {
+          "enum": [
+            "not_submitted",
+            "submitted",
+            "running",
+            "completed",
+            "failed",
+            "rejected",
+            "not_requested",
+            "approved",
+            "queued",
+            "cancelled",
+            "unknown"
+          ]
+        },
+        "allowed": {"type": "boolean"},
+        "job_id": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "completion": {
+      "type": "object",
+      "required": ["scheduler_complete", "artifact_complete", "scientifically_accepted"],
+      "properties": {
+        "scheduler_complete": {"type": "boolean"},
+        "artifact_complete": {"type": "boolean"},
+        "scientifically_accepted": {"type": "boolean"}
+      },
+      "additionalProperties": true
+    },
+    "lineage": {
+      "type": "object",
+      "required": ["derived_from", "supersedes"],
+      "properties": {
+        "derived_from": {"type": ["string", "null"]},
+        "derived_from_uuid": {"type": ["string", "null"]},
+        "supersedes": {"type": ["string", "null"]}
+      },
+      "additionalProperties": true
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "status"],
+        "properties": {
+          "at": {"type": "string", "format": "date-time"},
+          "status": {"type": "string", "minLength": 1},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "result": {"type": "object", "additionalProperties": true},
+    "analysis": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "file_reference": {
+      "type": "object",
+      "required": ["base", "path"],
+      "properties": {
+        "base": {
+          "enum": ["task_root", "structure_root", "composition_root", "workspace_root"]
+        },
+        "path": {"$ref": "#/$defs/relative_path"},
+        "name": {"type": "string", "minLength": 1},
+        "role": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "authority": {"enum": ["generated", "user_override"]}
+      },
+      "additionalProperties": true
+    },
+    "dependency": {
+      "type": "object",
+      "required": ["task_ref", "required_artifacts", "gate_status"],
+      "properties": {
+        "task_ref": {"type": "string", "minLength": 1},
+        "required_artifacts": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "gate_status": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": true
+    },
+    "attempt": {
+      "type": "object",
+      "required": ["attempt_id", "reason", "snapshot"],
+      "properties": {
+        "attempt_id": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1},
+        "snapshot": {"type": "object", "additionalProperties": true},
+        "scheduler": {"type": "object", "additionalProperties": true},
+        "job_id": {"type": ["string", "null"]},
+        "submitted_at": {"type": "string", "format": "date-time"},
+        "started_at": {"type": "string", "format": "date-time"},
+        "finished_at": {"type": "string", "format": "date-time"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

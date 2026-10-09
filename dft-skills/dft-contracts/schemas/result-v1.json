@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/result-v1",
+  "title": "Engine-neutral DFT result v1",
+  "type": "object",
+  "required": ["schema_version", "contract", "engine", "parser", "termination", "convergence", "source_files", "warnings", "confidence"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "dft.result.v1"},
+    "engine": {"type": "string", "minLength": 1},
+    "engine_version": {"type": ["string", "null"]},
+    "task_dir": {"type": "string"},
+    "parser": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"type": "string"}, "version": {"type": "string"}},
+      "additionalProperties": true
+    },
+    "termination": {"type": "object", "required": ["normal", "status"]},
+    "convergence": {"type": "object", "required": ["electronic", "ionic"]},
+    "energy": {"type": ["object", "null"]},
+    "forces": {"type": ["object", "null"]},
+    "stress": {"type": ["object", "null"]},
+    "magnetization": {"type": ["object", "null"]},
+    "final_structure": {"type": ["object", "null"]},
+    "electronic_structure": {"type": ["object", "null"]},
+    "source_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256", "size"],
+        "properties": {
+          "path": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "size": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"enum": ["high", "medium", "low", "provisional"]}
+  },
+  "additionalProperties": true
+}
+

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Wannier"
+  short_description: "Wannier 拟合诊断、能窗与投影调优、电子插值质量验收"
+  default_prompt: "使用 $dft-wannier 检查我的 Wannier 输入和拟合结果，先用程序提取证据，再给出最小参数调整方案与独立验证标准。"

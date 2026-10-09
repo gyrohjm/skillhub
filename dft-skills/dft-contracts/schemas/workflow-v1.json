@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.dft/contracts/workflow-v1.json",
+  "title": "Lightweight DFT workflow leaf record",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "contract",
+    "composition_slug",
+    "structure_slug",
+    "task_slug",
+    "status",
+    "engine",
+    "updated_at",
+    "inputs"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "dft.workflow.v1"},
+    "composition_slug": {"$ref": "#/$defs/slug"},
+    "structure_slug": {"$ref": "#/$defs/slug"},
+    "task_slug": {
+      "type": "string",
+      "pattern": "^(?:p[0-9]+|[0-9]{2,})(?:_[a-z0-9][a-z0-9_-]*)?$"
+    },
+    "variant_slug": {"$ref": "#/$defs/slug"},
+    "status": {
+      "enum": [
+        "planned",
+        "prepared",
+        "submitted",
+        "running",
+        "completed",
+        "failed",
+        "inconclusive",
+        "superseded"
+      ]
+    },
+    "engine": {
+      "enum": ["vasp", "quantum-espresso", "cp2k", "abinit", "gpaw", "other"]
+    },
+    "updated_at": {"type": "string", "format": "date-time"},
+    "design": {"type": "object"},
+    "inputs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/file_reference"}
+    },
+    "submission": {"type": "object"},
+    "result": {"type": "object"},
+    "analysis": {"type": "object"},
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["at", "status"],
+        "properties": {
+          "at": {"type": "string", "format": "date-time"},
+          "status": {"type": "string"},
+          "note": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "$defs": {
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\\\u0000]+$"
+    },
+    "file_reference": {
+      "type": "object",
+      "required": ["base", "path"],
+      "properties": {
+        "base": {
+          "enum": ["task_root", "structure_root", "composition_root", "workspace_root"]
+        },
+        "path": {"$ref": "#/$defs/relative_path"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
+        "role": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}

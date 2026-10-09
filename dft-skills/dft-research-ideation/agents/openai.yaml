@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Research Ideation"
+  short_description: "Turn verified literature into testable DFT ideas"
+  default_prompt: "Use $dft-research-ideation to map literature and local results, identify DFT-addressable gaps, generate and challenge falsifiable ideas, check novelty, and prepare my selected idea for $dft-design without inventing parameters or approving calculations."
