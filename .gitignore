@@ -27,3 +27,10 @@ sci-assitant/
 
 # Local backups of former nested skill repositories.
 .git-history-backups/
+
+# Local DFT environment and extraction configuration
+.dft/
+**/docs/project-resources.md
+**/profiles.local.json
+**/privacy-markers.json
+**/mineru_config.json

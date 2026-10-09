@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Submission"
+  short_description: "Submit and migrate authorized jobs using private local profiles"
+  default_prompt: "Use $dft-submit to prepare or migrate the requested calculation using the selected private environment profile and preserve scheduler receipts."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Work Manager"
+  short_description: "Initialize, organize and maintain DFT projects"
+  default_prompt: "Use $dft-work-manager to initialize or organize this DFT project, maintain its fixed records, and verify selected results while preserving active calculations and source evidence."

@@ -1,0 +1,140 @@
+{
+  "schema_version": 2,
+  "design_id": "project_computation",
+  "revision": 1,
+  "status": "draft",
+  "domain_pack": null,
+  "domain_metadata": {},
+  "project_slug": "project",
+  "title": "计算实验设计",
+  "research_questions": [
+    {"id": "Q1", "question": "待补充"}
+  ],
+  "hypotheses": [
+    {"id": "H1", "statement": "待补充", "falsification": "待补充"}
+  ],
+  "systems": [
+    {
+      "system_slug": "system",
+      "model": "待补充",
+      "structure_provenance": "待补充",
+      "assumptions": []
+    }
+  ],
+  "observables": [
+    {
+      "id": "O1",
+      "hypothesis_ids": ["H1"],
+      "quantity": "待补充",
+      "decision_rule": "待补充",
+      "uncertainty_target": "待补充"
+    }
+  ],
+  "controls": [
+    {"id": "C1", "type": "baseline", "purpose": "待补充", "fixed_or_varied": "待补充"}
+  ],
+  "convergence_studies": [
+    {
+      "id": "CV1",
+      "parameter": "待补充",
+      "candidate_values": [],
+      "fixed_conditions": [],
+      "target_observable_ids": ["O1"],
+      "acceptance_rule": "待补充",
+      "selected_value": null
+    }
+  ],
+  "validation_checks": [
+    {"id": "V1", "type": "independent_reference", "reference": "待补充", "acceptance_rule": "待补充"}
+  ],
+  "calculation_matrix": [
+    {
+      "id": "M1",
+      "class": "exploratory",
+      "system_slug": "system",
+      "case_slug": "exploratory_case",
+      "hypothesis_ids": ["H1"],
+      "purpose": "待补充",
+      "variables": {},
+      "fixed_parameters": {},
+      "stages": ["relax"],
+      "observable_ids": ["O1"],
+      "completion_gate": "待补充"
+    }
+  ],
+  "execution_plan": {
+    "tasks": [
+      {
+        "task_slug": "p1_relax",
+        "matrix_id": "M1",
+        "stage": "relax",
+        "engine": "vasp",
+        "dependencies": [],
+        "inputs": [
+          {"name": "INCAR", "mode": "static", "source": "plans/project/structure/inputs/p1_relax/INCAR"},
+          {"name": "KPOINTS", "mode": "static", "source": "plans/project/structure/inputs/p1_relax/KPOINTS"},
+          {"name": "POSCAR", "mode": "static", "source": "plans/project/structure/inputs/p1_relax/POSCAR"},
+          {"name": "POTCAR", "mode": "static", "source": "plans/project/structure/inputs/p1_relax/POTCAR"}
+        ]
+      }
+    ]
+  },
+  "engine_stage_envelopes": [
+    {
+      "matrix_id": "M1",
+      "engine": "vasp",
+      "structure_source": "待补充",
+      "parameter_policy": "待补充",
+      "kpoints_policy": "待补充",
+      "pseudopotential_policy": "待补充",
+      "resource_profile": "待补充",
+      "completion_gates": {"relax": "待补充"},
+      "parameter_selection": {
+        "basis_cutoff": {
+          "status": "pending",
+          "method": "待补充",
+          "source_metadata": {"source": "待补充"},
+          "candidate_values": [],
+          "units": "待补充",
+          "fixed_conditions": [],
+          "target_observable_ids": ["O1"],
+          "acceptance_rule": "待补充",
+          "selected_value": null,
+          "evidence_refs": []
+        },
+        "occupations": {
+          "status": "pending",
+          "method": "待补充",
+          "source_metadata": {"material_class": "待补充", "stage": "待补充"},
+          "candidate_values": [],
+          "units": "待补充",
+          "fixed_conditions": [],
+          "target_observable_ids": ["O1"],
+          "acceptance_rule": "待补充",
+          "selected_value": null,
+          "evidence_refs": []
+        },
+        "kpoints": {
+          "status": "pending",
+          "method": "待补充",
+          "source_metadata": {"reciprocal_convention": "待补充", "target_spacing": "待补充"},
+          "candidate_values": [],
+          "units": "1/angstrom",
+          "fixed_conditions": [],
+          "target_observable_ids": ["O1"],
+          "acceptance_rule": "待补充",
+          "selected_value": null,
+          "evidence_refs": []
+        }
+      },
+      "engine_parameters": {}
+    }
+  ],
+  "evidence": [
+    {"id": "E1", "claim": "待补充", "source": "待补充", "kind": "primary_source", "status": "pending", "supports": ["H1"]}
+  ],
+  "uncertainty_budget": [],
+  "resource_budget": {"task_count": "待补充", "compute": "待补充", "storage": "待补充"},
+  "stop_conditions": ["待补充"],
+  "pending_decisions": ["完成科学设计后再提交审核"]
+}

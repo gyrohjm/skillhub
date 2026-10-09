@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "engines": {
+    "vasp": {
+      "status": "operational",
+      "prepare": true,
+      "register_prebuilt": true,
+      "submit": true,
+      "legacy_submit": true,
+      "workflow_parse": true,
+      "scientific_parse": true,
+      "canonical_layout_helper": true,
+      "canonical_actions": ["initialize", "bind-approval", "reconcile", "gate", "submit"],
+      "canonical_submit": true,
+      "canonical_helper": "python scripts/canonical_workflow.py initialize",
+      "legacy_layout_helper": "vwf",
+      "analyze": ["energy", "forces", "stress", "fermi_energy", "magnetization", "band", "band_gap", "dos"]
+    },
+    "quantum-espresso": {
+      "status": "operational",
+      "prepare": false,
+      "register_prebuilt": true,
+      "submit": true,
+      "legacy_submit": true,
+      "workflow_parse": true,
+      "scientific_parse": true,
+      "canonical_layout_helper": true,
+      "canonical_actions": ["initialize", "bind-approval", "reconcile", "gate", "submit"],
+      "canonical_submit": true,
+      "canonical_helper": "python scripts/canonical_workflow.py initialize",
+      "legacy_layout_helper": "qewf",
+      "analyze": ["energy", "forces", "stress", "fermi_energy", "magnetization", "band_plot_data", "dos"]
+    },
+    "cp2k": {
+      "status": "contract-only",
+      "prepare": false,
+      "register_prebuilt": false,
+      "submit": false,
+      "workflow_parse": false,
+      "scientific_parse": false,
+      "canonical_layout_helper": false,
+      "analyze": []
+    },
+    "abinit": {
+      "status": "contract-only",
+      "prepare": false,
+      "register_prebuilt": false,
+      "submit": false,
+      "workflow_parse": false,
+      "scientific_parse": false,
+      "canonical_layout_helper": false,
+      "analyze": []
+    },
+    "gpaw": {
+      "status": "contract-only",
+      "prepare": false,
+      "register_prebuilt": false,
+      "submit": false,
+      "workflow_parse": false,
+      "scientific_parse": false,
+      "canonical_layout_helper": false,
+      "analyze": []
+    }
+  },
+  "domain_packs": {
+    "defects-surfaces-interfaces": {
+      "status": "operational",
+      "design": true,
+      "workflow": ["bulk_reference", "defect_relax", "surface_relax", "adsorption_relax", "interface_relax", "charge_density", "locpot", "bader"],
+      "analysis": ["formation_energy", "surface_energy", "adsorption_energy", "interface_adhesion", "work_function", "charge"]
+    },
+    "phonon-thermodynamics": {
+      "status": "partial",
+      "design": true,
+      "workflow": ["vasp_finite_displacement", "qe_prebuilt_dfpt"],
+      "analysis": ["phonon_plot_contract"],
+      "missing": ["engine-neutral thermodynamics parser", "LO-TO validation"]
+    },
+    "migration-neb": {
+      "status": "contract-only",
+      "design": true,
+      "workflow": [],
+      "analysis": [],
+      "missing": ["reviewed NEB task preparation", "image parser", "barrier validator"]
+    }
+  },
+  "research_workflows": {
+    "dft-research-ideation": {
+      "status": "operational",
+      "literature_acquisition": "delegates-to-research-teach",
+      "evidence_contract": "dft.research-idea.v1",
+      "novelty_check": true,
+      "idea_review": ["literature", "materials_physics", "dft_numerics", "resources_reproducibility"],
+      "handoff": "dft.idea-to-design-seed.v1",
+      "authorizes_calculation": false
+    }
+  }
+}

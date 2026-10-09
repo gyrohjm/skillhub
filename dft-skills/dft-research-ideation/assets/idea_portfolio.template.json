@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "contract": "dft.research-idea.v1",
+  "portfolio_id": "project_dft_ideas",
+  "revision": 1,
+  "status": "draft",
+  "research_question": "待与用户确认",
+  "scope": {
+    "materials": [],
+    "phenomena": [],
+    "constraints": [],
+    "excluded_topics": []
+  },
+  "evidence": [],
+  "gaps": [],
+  "ideas": [],
+  "review_history": [],
+  "selected_idea_id": null,
+  "pending_decisions": ["确认研究问题、范围和文献检索协议"]
+}

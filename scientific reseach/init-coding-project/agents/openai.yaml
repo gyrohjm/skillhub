@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initialize Coding Project"
+  short_description: "Interview, preview, and safely initialize coding projects"
+  default_prompt: "Use $init-coding-project to define and safely initialize this coding project."

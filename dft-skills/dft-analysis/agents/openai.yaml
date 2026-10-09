@@ -1,0 +1,4 @@
+interface:
+  display_name: "DFT Analysis"
+  short_description: "Validate DFT results, diagnose failures, and plan next steps"
+  default_prompt: "Use $dft-analysis to gate completion with scheduler and engine evidence, keep processed data, fixed-style figures, and reports in the source structure case's analysis tree, diagnose failed tasks without overwriting or submitting them, and hand evidence-linked parameter changes to $dft-design before dft-workflow prepares a new task."

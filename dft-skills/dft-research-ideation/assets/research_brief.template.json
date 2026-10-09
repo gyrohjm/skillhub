@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "project_slug": "project",
+  "research_goal": "待与用户确认",
+  "decision_use": "待与用户确认",
+  "materials": [],
+  "phenomena": [],
+  "known_constraints": [],
+  "available_local_results": [],
+  "literature_date_range": null,
+  "core_journals": [],
+  "search_sources": ["Web of Science or Scopus", "Google Scholar", "Crossref", "arXiv", "publisher sites"],
+  "inclusion_criteria": [],
+  "exclusion_criteria": [],
+  "status": "draft"
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Local Git hook: validate the proposed DFT tree, never print matching values.
+set -eu
+repo=$(git rev-parse --show-toplevel)
+export PYTHONPATH="$repo/dft-skills/dft-contracts${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m dft_contracts.privacy --staged --root "$repo"

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/task-spec-v2",
+  "title": "DFT task specification v2",
+  "type": "object",
+  "required": ["schema_version", "engine", "backend", "task_kind", "task_dir", "input_hashes"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "contract": {"const": "dft.task-spec.v2"},
+    "engine": {"type": "string", "minLength": 1},
+    "backend": {"type": "string", "minLength": 1},
+    "task_kind": {"type": "string", "minLength": 1},
+    "task_dir": {"type": "string", "minLength": 1},
+    "input_hashes": {"type": "object", "additionalProperties": {"type": "string"}},
+    "pseudopotential_components": {"type": "array", "items": {"type": "object"}},
+    "parent_fingerprints": {"type": "array", "items": {"type": "string"}},
+    "design_provenance": {"type": "object"},
+    "resources": {"type": "object"}
+  },
+  "additionalProperties": true
+}
+

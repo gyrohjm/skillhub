@@ -1,0 +1,6 @@
+interface:
+  display_name: "DFT Design"
+  short_description: "Design engine-aware, defensible DFT experiments"
+  default_prompt: "Use $dft-design to create or revise a reviewable DFT experiment, maintain the existing local route docs/plan.md (legacy plan README.md remains supported), confirm numerical parameters, validate calculation_design.json, and record approvals in history.jsonl. Paired cluster tasks receive only a bound minimal execution snapshot."
+policy:
+  allow_implicit_invocation: false

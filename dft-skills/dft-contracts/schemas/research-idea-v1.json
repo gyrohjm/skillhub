@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dft://contracts/research-idea-v1",
+  "title": "Literature-grounded DFT research idea portfolio v1",
+  "type": "object",
+  "required": [
+    "schema_version", "contract", "portfolio_id", "revision", "status",
+    "research_question", "scope", "evidence", "gaps", "ideas",
+    "review_history", "selected_idea_id", "pending_decisions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "dft.research-idea.v1"},
+    "portfolio_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$"},
+    "revision": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["draft", "ready_for_review", "selected_for_design", "superseded"]},
+    "research_question": {"type": "string", "minLength": 1},
+    "scope": {
+      "type": "object",
+      "required": ["materials", "phenomena", "constraints", "excluded_topics"],
+      "properties": {
+        "materials": {"type": "array", "items": {"type": "string"}},
+        "phenomena": {"type": "array", "items": {"type": "string"}},
+        "constraints": {"type": "array", "items": {"type": "string"}},
+        "excluded_topics": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "source_type", "claim", "locator", "verification_status", "role"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "source_type": {"enum": ["primary_paper", "review", "database", "official_documentation", "local_result", "teaching_source"]},
+          "claim": {"type": "string", "minLength": 1},
+          "locator": {"type": "string", "minLength": 1},
+          "verification_status": {"enum": ["verified", "pending"]},
+          "role": {"enum": ["support", "contradict", "context", "method"]},
+          "doi": {"type": ["string", "null"]},
+          "source_hash": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "statement", "evidence_ids", "confidence", "why_dft_can_help"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "type": {"enum": ["contradiction", "missing_control", "unexplored_regime", "method_limit", "missing_mechanism", "missing_uncertainty", "transfer_opportunity"]},
+          "statement": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "confidence": {"enum": ["low", "medium", "high"]},
+          "why_dft_can_help": {"type": "string", "minLength": 1}
+        },
+        "additionalProperties": true
+      }
+    },
+    "ideas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id", "title", "hypothesis", "falsification", "rationale",
+          "evidence_ids", "gap_ids", "target_observables", "controls",
+          "reference_states", "convergence_axes", "uncertainty_sources",
+          "novelty_checks", "calculation_outline", "resource_estimate",
+          "risks", "scores", "verdict"
+        ],
+        "properties": {
+          "id": {"type": "string", "pattern": "^I[0-9]+$"},
+          "title": {"type": "string", "minLength": 1},
+          "hypothesis": {"type": "string", "minLength": 1},
+          "falsification": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string", "minLength": 1},
+          "evidence_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "gap_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "target_observables": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["quantity", "unit", "decision_rule", "dft_method"],
+              "properties": {
+                "quantity": {"type": "string", "minLength": 1},
+                "unit": {"type": "string", "minLength": 1},
+                "decision_rule": {"type": "string", "minLength": 1},
+                "dft_method": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "controls": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "reference_states": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "convergence_axes": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "uncertainty_sources": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "novelty_checks": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["query", "source", "searched_at", "overlap", "outcome"],
+              "properties": {
+                "query": {"type": "string", "minLength": 1},
+                "source": {"type": "string", "minLength": 1},
+                "searched_at": {"type": "string", "minLength": 1},
+                "overlap": {"enum": ["none_found", "partial", "high", "unknown"]},
+                "outcome": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "calculation_outline": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "resource_estimate": {
+            "type": "object",
+            "required": ["task_count", "relative_cost", "storage_risk"],
+            "properties": {
+              "task_count": {"type": "integer", "minimum": 1},
+              "relative_cost": {"enum": ["low", "medium", "high", "very_high"]},
+              "storage_risk": {"enum": ["low", "medium", "high"]}
+            }
+          },
+          "risks": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "scores": {
+            "type": "object",
+            "required": ["literature_grounding", "novelty", "significance", "falsifiability", "dft_tractability", "numerical_robustness", "resource_fit"],
+            "additionalProperties": {"type": "number", "minimum": 1, "maximum": 5}
+          },
+          "verdict": {"enum": ["keep", "revise", "reject"]}
+        },
+        "additionalProperties": true
+      }
+    },
+    "review_history": {"type": "array", "items": {"type": "object"}},
+    "selected_idea_id": {"type": ["string", "null"]},
+    "pending_decisions": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

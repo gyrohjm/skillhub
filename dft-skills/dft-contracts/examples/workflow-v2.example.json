@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract": "dft.workflow.v2",
+  "composition_slug": "mgb2",
+  "structure_slug": "bulk",
+  "task_slug": "p1_relax",
+  "status": "prepared",
+  "engine": "vasp",
+  "updated_at": "2026-08-31T00:00:00+00:00",
+  "design": {
+    "design_id": "mgb2-bulk",
+    "revision": 1,
+    "approval_ref": "workspace_root:plans/mgb2/bulk/history.jsonl#mgb2:r0001",
+    "baseline_parameter_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "inputs": {
+    "materialization": "static",
+    "files": [
+      {
+        "base": "task_root",
+        "path": "INCAR",
+        "name": "INCAR",
+        "role": "engine_input",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "authority": "generated"
+      },
+      {
+        "base": "task_root",
+        "path": "KPOINTS",
+        "name": "KPOINTS",
+        "role": "engine_input",
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "authority": "generated"
+      },
+      {
+        "base": "task_root",
+        "path": "POSCAR",
+        "name": "POSCAR",
+        "role": "engine_input",
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "authority": "user_override"
+      },
+      {
+        "base": "task_root",
+        "path": "POTCAR",
+        "name": "POTCAR",
+        "role": "pseudopotential",
+        "sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "authority": "generated"
+      }
+    ]
+  },
+  "dependencies": [],
+  "input_authority": {
+    "default": "generated",
+    "overrides": ["POSCAR"]
+  },
+  "parameter_reconciliation": {
+    "status": "synchronized",
+    "changed_parameters": [],
+    "affected_tasks": []
+  },
+  "resource_profile": {
+    "ref": "workspace_root:.dft/resource-profile.json",
+    "overrides": {}
+  },
+  "attempts": [],
+  "submission": {
+    "state": "not_submitted",
+    "allowed": false,
+    "job_id": null
+  },
+  "completion": {
+    "scheduler_complete": false,
+    "artifact_complete": false,
+    "scientifically_accepted": false
+  },
+  "lineage": {
+    "derived_from": null,
+    "supersedes": null
+  },
+  "history": [
+    {
+      "at": "2026-08-31T00:00:00+00:00",
+      "status": "prepared",
+      "note": "Inputs materialized from the approved calculation design."
+    }
+  ]
+}
